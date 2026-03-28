@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "patients": "Patients",
+    "appointments": "Appointments",
+    "inventory": "Inventory",
+    "analytics": "Analytics",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalPatients": "Total Patients",
+    "todayAppointments": "Today's Appointments",
+    "lowStock": "Low Stock Items",
+    "monthlyRevenue": "Monthly Revenue",
+    "revenueOverview": "Revenue Overview",
+    "last6Months": "Last 6 months"
+  },
+  "patients": { "title": "Patients" },
+  "appointments": { "title": "Appointments" },
+  "inventory": { "title": "Inventory" },
+  "analytics": { "title": "Analytics" },
+  "profile": { "title": "Profile" },
+  "common": {
+    "search": "Search...",
+    "settings": "Settings",
+    "logout": "Logout",
+    "welcome": "Welcome",
+    "comingSoon": "Coming Soon"
+  }
+}

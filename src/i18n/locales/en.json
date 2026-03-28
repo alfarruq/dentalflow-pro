@@ -21,6 +21,16 @@
   "inventory": { "title": "Inventory" },
   "analytics": { "title": "Analytics" },
   "profile": { "title": "Profile" },
+  "login": {
+    "title": "Sign In",
+    "subtitle": "Sign in to your DentaFlow account",
+    "username": "Username",
+    "password": "Password",
+    "usernamePlaceholder": "Enter username",
+    "passwordPlaceholder": "Enter password",
+    "submit": "Sign In",
+    "error": "Invalid username or password"
+  },
   "common": {
     "search": "Search...",
     "settings": "Settings",

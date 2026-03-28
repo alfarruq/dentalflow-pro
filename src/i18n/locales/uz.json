@@ -21,6 +21,16 @@
   "inventory": { "title": "Ombor" },
   "analytics": { "title": "Statistika" },
   "profile": { "title": "Profil" },
+  "login": {
+    "title": "Tizimga kirish",
+    "subtitle": "DentaFlow hisobingizga kiring",
+    "username": "Foydalanuvchi nomi",
+    "password": "Parol",
+    "usernamePlaceholder": "Foydalanuvchi nomini kiriting",
+    "passwordPlaceholder": "Parolni kiriting",
+    "submit": "Kirish",
+    "error": "Noto'g'ri login yoki parol"
+  },
   "common": {
     "search": "Qidirish...",
     "settings": "Sozlamalar",

@@ -16,7 +16,38 @@
     "revenueOverview": "Revenue Overview",
     "last6Months": "Last 6 months"
   },
-  "patients": { "title": "Patients" },
+  "patients": {
+    "title": "Patients",
+    "addPatient": "Add New Patient",
+    "searchPlaceholder": "Search by name...",
+    "allStatuses": "All Statuses",
+    "allTreatments": "All Treatments",
+    "fullName": "Full Name",
+    "phone": "Phone Number",
+    "appointmentDate": "Appointment Date",
+    "treatmentType": "Treatment Type",
+    "status": "Status",
+    "totalCost": "Total Cost",
+    "paid": "Paid",
+    "remaining": "Remaining",
+    "debt": "Debt",
+    "actions": "Actions",
+    "pending": "Pending",
+    "in_progress": "In Progress",
+    "completed": "Completed",
+    "implant": "Implant",
+    "filling": "Filling",
+    "cleaning": "Cleaning",
+    "addPatientTitle": "Add New Patient",
+    "addPatientDesc": "Enter new patient details",
+    "save": "Save",
+    "cancel": "Cancel",
+    "noResults": "No patients found",
+    "page": "Page",
+    "of": "of",
+    "showing": "Showing",
+    "patients": "patients"
+  },
   "appointments": { "title": "Appointments" },
   "inventory": { "title": "Inventory" },
   "analytics": { "title": "Analytics" },
@@ -36,6 +67,7 @@
     "settings": "Settings",
     "logout": "Logout",
     "welcome": "Welcome",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "currency": "UZS"
   }
 }

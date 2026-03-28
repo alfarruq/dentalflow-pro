@@ -16,7 +16,38 @@
     "revenueOverview": "Daromad ko'rinishi",
     "last6Months": "Oxirgi 6 oy"
   },
-  "patients": { "title": "Bemorlar" },
+  "patients": {
+    "title": "Bemorlar",
+    "addPatient": "Yangi bemor qo'shish",
+    "searchPlaceholder": "Bemor ismini qidirish...",
+    "allStatuses": "Barcha holatlar",
+    "allTreatments": "Barcha davolashlar",
+    "fullName": "To'liq ism",
+    "phone": "Telefon raqam",
+    "appointmentDate": "Uchrashuv sanasi",
+    "treatmentType": "Davolash turi",
+    "status": "Holat",
+    "totalCost": "Umumiy narx",
+    "paid": "To'langan",
+    "remaining": "Qoldiq",
+    "debt": "Qarz",
+    "actions": "Amallar",
+    "pending": "Kutilmoqda",
+    "in_progress": "Davolash jarayonida",
+    "completed": "Tugallangan",
+    "implant": "Implant",
+    "filling": "Plomba",
+    "cleaning": "Tozalash",
+    "addPatientTitle": "Yangi bemor qo'shish",
+    "addPatientDesc": "Yangi bemor ma'lumotlarini kiriting",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "noResults": "Bemorlar topilmadi",
+    "page": "Sahifa",
+    "of": "dan",
+    "showing": "Ko'rsatilmoqda",
+    "patients": "bemorlar"
+  },
   "appointments": { "title": "Uchrashuvlar" },
   "inventory": { "title": "Ombor" },
   "analytics": { "title": "Statistika" },
@@ -36,6 +67,7 @@
     "settings": "Sozlamalar",
     "logout": "Chiqish",
     "welcome": "Xush kelibsiz",
-    "comingSoon": "Tez orada"
+    "comingSoon": "Tez orada",
+    "currency": "so'm"
   }
 }

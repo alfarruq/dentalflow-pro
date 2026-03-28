@@ -16,7 +16,38 @@
     "revenueOverview": "Обзор дохода",
     "last6Months": "Последние 6 месяцев"
   },
-  "patients": { "title": "Пациенты" },
+  "patients": {
+    "title": "Пациенты",
+    "addPatient": "Добавить пациента",
+    "searchPlaceholder": "Поиск по имени...",
+    "allStatuses": "Все статусы",
+    "allTreatments": "Все виды лечения",
+    "fullName": "Полное имя",
+    "phone": "Телефон",
+    "appointmentDate": "Дата приёма",
+    "treatmentType": "Вид лечения",
+    "status": "Статус",
+    "totalCost": "Общая стоимость",
+    "paid": "Оплачено",
+    "remaining": "Остаток",
+    "debt": "Долг",
+    "actions": "Действия",
+    "pending": "Ожидание",
+    "in_progress": "В процессе",
+    "completed": "Завершено",
+    "implant": "Имплант",
+    "filling": "Пломба",
+    "cleaning": "Чистка",
+    "addPatientTitle": "Добавить пациента",
+    "addPatientDesc": "Введите данные нового пациента",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "noResults": "Пациенты не найдены",
+    "page": "Страница",
+    "of": "из",
+    "showing": "Показано",
+    "patients": "пациентов"
+  },
   "appointments": { "title": "Записи" },
   "inventory": { "title": "Склад" },
   "analytics": { "title": "Статистика" },
@@ -36,6 +67,7 @@
     "settings": "Настройки",
     "logout": "Выйти",
     "welcome": "Добро пожаловать",
-    "comingSoon": "Скоро"
+    "comingSoon": "Скоро",
+    "currency": "сум"
   }
 }

@@ -21,6 +21,16 @@
   "inventory": { "title": "Склад" },
   "analytics": { "title": "Статистика" },
   "profile": { "title": "Профиль" },
+  "login": {
+    "title": "Вход в систему",
+    "subtitle": "Войдите в свой аккаунт DentaFlow",
+    "username": "Имя пользователя",
+    "password": "Пароль",
+    "usernamePlaceholder": "Введите имя пользователя",
+    "passwordPlaceholder": "Введите пароль",
+    "submit": "Войти",
+    "error": "Неверный логин или пароль"
+  },
   "common": {
     "search": "Поиск...",
     "settings": "Настройки",

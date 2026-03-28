@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "dashboard": "Главная",
+    "patients": "Пациенты",
+    "appointments": "Записи",
+    "inventory": "Склад",
+    "analytics": "Статистика",
+    "profile": "Профиль"
+  },
+  "dashboard": {
+    "title": "Главная",
+    "totalPatients": "Всего пациентов",
+    "todayAppointments": "Записи на сегодня",
+    "lowStock": "Мало на складе",
+    "monthlyRevenue": "Месячный доход",
+    "revenueOverview": "Обзор дохода",
+    "last6Months": "Последние 6 месяцев"
+  },
+  "patients": { "title": "Пациенты" },
+  "appointments": { "title": "Записи" },
+  "inventory": { "title": "Склад" },
+  "analytics": { "title": "Статистика" },
+  "profile": { "title": "Профиль" },
+  "common": {
+    "search": "Поиск...",
+    "settings": "Настройки",
+    "logout": "Выйти",
+    "welcome": "Добро пожаловать",
+    "comingSoon": "Скоро"
+  }
+}

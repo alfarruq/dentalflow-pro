@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "dashboard": "Bosh sahifa",
+    "patients": "Bemorlar",
+    "appointments": "Uchrashuvlar",
+    "inventory": "Ombor",
+    "analytics": "Statistika",
+    "profile": "Profil"
+  },
+  "dashboard": {
+    "title": "Bosh sahifa",
+    "totalPatients": "Jami bemorlar",
+    "todayAppointments": "Bugungi uchrashuvlar",
+    "lowStock": "Kam qolgan mahsulotlar",
+    "monthlyRevenue": "Oylik daromad",
+    "revenueOverview": "Daromad ko'rinishi",
+    "last6Months": "Oxirgi 6 oy"
+  },
+  "patients": { "title": "Bemorlar" },
+  "appointments": { "title": "Uchrashuvlar" },
+  "inventory": { "title": "Ombor" },
+  "analytics": { "title": "Statistika" },
+  "profile": { "title": "Profil" },
+  "common": {
+    "search": "Qidirish...",
+    "settings": "Sozlamalar",
+    "logout": "Chiqish",
+    "welcome": "Xush kelibsiz",
+    "comingSoon": "Tez orada"
+  }
+}

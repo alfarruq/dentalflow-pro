@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ function formatCurrency(amount: number) {
 
 export default function Patients() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [patients, setPatients] = useState<Patient[]>(mockPatients);
   const [search, setSearch] = useState("");
@@ -78,11 +80,16 @@ export default function Patients() {
       id: `p-${Date.now()}`,
       fullName: newName.trim(),
       phone: newPhone.trim() || "+998901234567",
+      age: 30,
+      allergies: [],
+      medicalNotes: "",
       appointmentDate: new Date().toISOString(),
       treatmentType: newTreatment,
       status: newStatus,
       totalCost: Number(newTotalCost) || 0,
       amountPaid: Number(newAmountPaid) || 0,
+      treatmentHistory: [],
+      galleryImages: [],
     };
     setPatients((prev) => [patient, ...prev]);
     setNewName("");
@@ -222,7 +229,7 @@ export default function Patients() {
                 const remaining = getRemainingBalance(patient);
                 const hasDebt = remaining > 0;
                 return (
-                  <TableRow key={patient.id} className={hasDebt ? "bg-destructive/5" : ""}>
+                  <TableRow key={patient.id} className={`cursor-pointer transition-colors hover:bg-muted/50 ${hasDebt ? "bg-destructive/5" : ""}`} onClick={() => navigate(`/patients/${patient.id}`)}>
                     <TableCell className="font-medium">{patient.fullName}</TableCell>
                     <TableCell className="text-muted-foreground">{patient.phone}</TableCell>
                     <TableCell className="text-muted-foreground">

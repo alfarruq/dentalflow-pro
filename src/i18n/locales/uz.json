@@ -48,6 +48,21 @@
     "showing": "Ko'rsatilmoqda",
     "patients": "bemorlar"
   },
+  "patientProfile": {
+    "backToList": "Bemorlar ro'yxatiga qaytish",
+    "notFound": "Bemor topilmadi",
+    "yearsOld": "yosh",
+    "medicalAlert": "Tibbiy ogohlantirish",
+    "overview": "Umumiy ma'lumot",
+    "treatmentHistory": "Davolash tarixi",
+    "gallery": "Galereya",
+    "xray": "Rentgen",
+    "dentalChart": "Tish xaritasi",
+    "dentalChartPlaceholder": "Interaktiv tish xaritasi tez orada qo'shiladi",
+    "totalSpent": "Jami sarflangan",
+    "tooth": "Tish",
+    "noHistory": "Davolash tarixi mavjud emas"
+  },
   "appointments": { "title": "Uchrashuvlar" },
   "inventory": { "title": "Ombor" },
   "analytics": { "title": "Statistika" },

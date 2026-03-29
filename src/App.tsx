@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
+import PatientProfile from "./pages/PatientProfile";
 import Appointments from "./pages/Appointments";
 import Inventory from "./pages/Inventory";
 import Analytics from "./pages/Analytics";
@@ -34,6 +35,7 @@ const App = () => (
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/patients" element={<Patients />} />
+                      <Route path="/patients/:id" element={<PatientProfile />} />
                       <Route path="/appointments" element={<Appointments />} />
                       <Route path="/inventory" element={<Inventory />} />
                       <Route path="/analytics" element={<Analytics />} />

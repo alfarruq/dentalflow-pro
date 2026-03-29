@@ -48,6 +48,21 @@
     "showing": "Показано",
     "patients": "пациентов"
   },
+  "patientProfile": {
+    "backToList": "Назад к пациентам",
+    "notFound": "Пациент не найден",
+    "yearsOld": "лет",
+    "medicalAlert": "Медицинское предупреждение",
+    "overview": "Обзор",
+    "treatmentHistory": "История лечения",
+    "gallery": "Галерея",
+    "xray": "Рентген",
+    "dentalChart": "Зубная карта",
+    "dentalChartPlaceholder": "Интерактивная зубная карта скоро появится",
+    "totalSpent": "Всего потрачено",
+    "tooth": "Зуб",
+    "noHistory": "Нет истории лечения"
+  },
   "appointments": { "title": "Записи" },
   "inventory": { "title": "Склад" },
   "analytics": { "title": "Статистика" },

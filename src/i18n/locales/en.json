@@ -48,6 +48,21 @@
     "showing": "Showing",
     "patients": "patients"
   },
+  "patientProfile": {
+    "backToList": "Back to Patients",
+    "notFound": "Patient not found",
+    "yearsOld": "years old",
+    "medicalAlert": "Medical Alert",
+    "overview": "Overview",
+    "treatmentHistory": "Treatment History",
+    "gallery": "Gallery",
+    "xray": "X-Ray",
+    "dentalChart": "Dental Chart",
+    "dentalChartPlaceholder": "Interactive dental chart coming soon",
+    "totalSpent": "Total Spent",
+    "tooth": "Tooth",
+    "noHistory": "No treatment history"
+  },
   "appointments": { "title": "Appointments" },
   "inventory": { "title": "Inventory" },
   "analytics": { "title": "Analytics" },

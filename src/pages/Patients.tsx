@@ -78,11 +78,16 @@ export default function Patients() {
       id: `p-${Date.now()}`,
       fullName: newName.trim(),
       phone: newPhone.trim() || "+998901234567",
+      age: 30,
+      allergies: [],
+      medicalNotes: "",
       appointmentDate: new Date().toISOString(),
       treatmentType: newTreatment,
       status: newStatus,
       totalCost: Number(newTotalCost) || 0,
       amountPaid: Number(newAmountPaid) || 0,
+      treatmentHistory: [],
+      galleryImages: [],
     };
     setPatients((prev) => [patient, ...prev]);
     setNewName("");

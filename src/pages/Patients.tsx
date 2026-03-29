@@ -229,7 +229,7 @@ export default function Patients() {
                 const remaining = getRemainingBalance(patient);
                 const hasDebt = remaining > 0;
                 return (
-                  <TableRow key={patient.id} className={hasDebt ? "bg-destructive/5" : ""}>
+                  <TableRow key={patient.id} className={`cursor-pointer transition-colors hover:bg-muted/50 ${hasDebt ? "bg-destructive/5" : ""}`} onClick={() => navigate(`/patients/${patient.id}`)}>
                     <TableCell className="font-medium">{patient.fullName}</TableCell>
                     <TableCell className="text-muted-foreground">{patient.phone}</TableCell>
                     <TableCell className="text-muted-foreground">

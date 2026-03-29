@@ -35,6 +35,7 @@ function formatCurrency(amount: number) {
 
 export default function Patients() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [patients, setPatients] = useState<Patient[]>(mockPatients);
   const [search, setSearch] = useState("");

@@ -14,7 +14,9 @@
     "lowStock": "Kam qolgan mahsulotlar",
     "monthlyRevenue": "Oylik daromad",
     "revenueOverview": "Daromad ko'rinishi",
-    "last6Months": "Oxirgi 6 oy"
+    "last6Months": "Oxirgi 6 oy",
+    "todaySchedule": "Bugungi Jadval"
+  },
   },
   "patients": {
     "title": "Bemorlar",
@@ -77,7 +79,31 @@
     "noAlerts": "Tibbiy ogohlantirishlar yo'q",
     "totalVisits": "Jami tashriflar"
   },
-  "appointments": { "title": "Uchrashuvlar" },
+  "appointments": {
+    "title": "Uchrashuvlar",
+    "addAppointment": "Yangi Uchrashuv",
+    "addAppointmentDesc": "Yangi uchrashuv ma'lumotlarini kiriting",
+    "today": "Bugun",
+    "week": "1 Hafta",
+    "tenDays": "10 Kun",
+    "month": "1 Oy",
+    "searchPatient": "Bemorni qidirish...",
+    "noAppointments": "Uchrashuvlar topilmadi",
+    "appointments": "ta uchrashuv",
+    "patientType": "Bemor turi",
+    "existingPatient": "Mavjud bemor",
+    "newPatient": "Yangi bemor",
+    "selectPatient": "Bemorni tanlang",
+    "date": "Sana",
+    "time": "Vaqt",
+    "notes": "Eslatmalar",
+    "selectDate": "Sanani tanlang",
+    "appointmentAdded": "Uchrashuv muvaffaqiyatli qo'shildi",
+    "status_pending": "Kutilmoqda",
+    "status_confirmed": "Tasdiqlangan",
+    "status_completed": "Tugallangan",
+    "status_cancelled": "Bekor qilingan"
+  },
   "inventory": { "title": "Ombor" },
   "analytics": { "title": "Statistika" },
   "profile": { "title": "Profil" },

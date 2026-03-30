@@ -14,7 +14,9 @@
     "lowStock": "Low Stock Items",
     "monthlyRevenue": "Monthly Revenue",
     "revenueOverview": "Revenue Overview",
-    "last6Months": "Last 6 months"
+    "last6Months": "Last 6 months",
+    "todaySchedule": "Today's Schedule"
+  },
   },
   "patients": {
     "title": "Patients",
@@ -77,7 +79,31 @@
     "noAlerts": "No medical alerts",
     "totalVisits": "Total Visits"
   },
-  "appointments": { "title": "Appointments" },
+  "appointments": {
+    "title": "Appointments",
+    "addAppointment": "New Appointment",
+    "addAppointmentDesc": "Enter appointment details",
+    "today": "Today",
+    "week": "1 Week",
+    "tenDays": "10 Days",
+    "month": "1 Month",
+    "searchPatient": "Search patient...",
+    "noAppointments": "No appointments found",
+    "appointments": "appointments",
+    "patientType": "Patient type",
+    "existingPatient": "Existing Patient",
+    "newPatient": "New Patient",
+    "selectPatient": "Select patient",
+    "date": "Date",
+    "time": "Time",
+    "notes": "Notes",
+    "selectDate": "Select date",
+    "appointmentAdded": "Appointment added successfully",
+    "status_pending": "Pending",
+    "status_confirmed": "Confirmed",
+    "status_completed": "Completed",
+    "status_cancelled": "Cancelled"
+  },
   "inventory": { "title": "Inventory" },
   "analytics": { "title": "Analytics" },
   "profile": { "title": "Profile" },

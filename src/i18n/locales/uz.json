@@ -15,7 +15,8 @@
     "monthlyRevenue": "Oylik daromad",
     "revenueOverview": "Daromad ko'rinishi",
     "last6Months": "Oxirgi 6 oy",
-    "todaySchedule": "Bugungi Jadval"
+    "todaySchedule": "Bugungi uchrashuvlar",
+    "reorderNeeded": "Buyurtma kerak"
   },
   "patients": {
     "title": "Bemorlar",
@@ -101,7 +102,9 @@
     "status_pending": "Kutilmoqda",
     "status_confirmed": "Tasdiqlangan",
     "status_completed": "Tugallangan",
-    "status_cancelled": "Bekor qilingan"
+    "status_cancelled": "Bekor qilingan",
+    "listView": "Ro'yxat ko'rinishi",
+    "gridView": "Kalendar ko'rinishi"
   },
   "inventory": { "title": "Ombor" },
   "analytics": { "title": "Statistika" },

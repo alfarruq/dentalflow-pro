@@ -10,6 +10,7 @@ export interface Appointment {
   date: string;
   time: string;
   treatmentType: TreatmentType;
+  toothNumber?: number;
   status: AppointmentStatus;
   notes: string;
 }
@@ -42,17 +43,18 @@ export function generateMockAppointments(): Appointment[] {
 
   const today = new Date(2026, 2, 30);
 
-  // Generate appointments spanning -3 days to +35 days from today
   for (let i = 0; i < 60; i++) {
     const dayOffset = Math.floor(rng() * 38) - 3;
     const date = new Date(today);
     date.setDate(date.getDate() + dayOffset);
 
-    const hour = 9 + Math.floor(rng() * 9); // 9-17
-    const minute = Math.floor(rng() * 4) * 15; // 0, 15, 30, 45
+    const hour = 9 + Math.floor(rng() * 9);
+    const minute = Math.floor(rng() * 4) * 15;
 
     const patient = pick(mockPatients);
     const status: AppointmentStatus = dayOffset < 0 ? "completed" : pick(appointmentStatuses);
+    const treatment = pick(treatments);
+    const toothNumber = treatment !== "cleaning" ? Math.floor(rng() * 32) + 1 : undefined;
 
     appointments.push({
       id: `apt-${String(i + 1).padStart(3, "0")}`,
@@ -61,7 +63,8 @@ export function generateMockAppointments(): Appointment[] {
       phone: patient.phone,
       date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
       time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
-      treatmentType: pick(treatments),
+      treatmentType: treatment,
+      toothNumber,
       status,
       notes: pick(noteOptions),
     });

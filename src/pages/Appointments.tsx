@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Plus, Search, Clock, User, Phone } from "lucide-react";
-import { format, addDays, addMonths, isWithinInterval, parseISO } from "date-fns";
+import { CalendarDays, Plus, Search, Clock, User, List, LayoutGrid, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, addDays, addMonths, isWithinInterval, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from "date-fns";
+import { uz } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,10 +21,20 @@ import { useToast } from "@/hooks/use-toast";
 
 const statusColors: Record<AppointmentStatus, string> = {
   pending: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  confirmed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  completed: "bg-muted text-muted-foreground",
+  confirmed: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
   cancelled: "bg-destructive/10 text-destructive",
 };
+
+const treatmentColors: Record<string, string> = {
+  implant: "border-l-4 border-l-blue-400",
+  filling: "border-l-4 border-l-amber-400",
+  cleaning: "border-l-4 border-l-emerald-400",
+};
+
+const dayLabelsShort = ["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"];
+
+const VIEW_MODE_KEY = "dentaflow-appointments-view";
 
 export default function Appointments() {
   const { t } = useTranslation();
@@ -42,42 +53,38 @@ export default function Appointments() {
   const [aptNotes, setAptNotes] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
 
+  // View mode: list or grid
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    return (localStorage.getItem(VIEW_MODE_KEY) as "list" | "grid") || "list";
+  });
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_KEY, viewMode);
+  }, [viewMode]);
+
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
 
   const filteredAppointments = useMemo(() => {
     let filtered = [...appointments];
-
-    // Date filter
     const now = new Date();
     if (view === "today") {
       filtered = filtered.filter((a) => a.date === todayStr);
     } else if (view === "week") {
       const end = addDays(now, 7);
-      filtered = filtered.filter((a) => {
-        const d = parseISO(a.date);
-        return isWithinInterval(d, { start: now, end });
-      });
+      filtered = filtered.filter((a) => { const d = parseISO(a.date); return isWithinInterval(d, { start: now, end }); });
     } else if (view === "10days") {
       const end = addDays(now, 10);
-      filtered = filtered.filter((a) => {
-        const d = parseISO(a.date);
-        return isWithinInterval(d, { start: now, end });
-      });
+      filtered = filtered.filter((a) => { const d = parseISO(a.date); return isWithinInterval(d, { start: now, end }); });
     } else if (view === "month") {
       const end = addMonths(now, 1);
-      filtered = filtered.filter((a) => {
-        const d = parseISO(a.date);
-        return isWithinInterval(d, { start: now, end });
-      });
+      filtered = filtered.filter((a) => { const d = parseISO(a.date); return isWithinInterval(d, { start: now, end }); });
     }
-
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       filtered = filtered.filter((a) => a.patientName.toLowerCase().includes(q));
     }
-
     return filtered.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   }, [appointments, view, search, todayStr]);
 
@@ -103,7 +110,6 @@ export default function Appointments() {
     let patientName = "";
     let phone = "";
     let patientId = "";
-
     if (patientMode === "existing") {
       const patient = mockPatients.find((p) => p.id === selectedPatientId);
       if (!patient) return;
@@ -116,9 +122,7 @@ export default function Appointments() {
       phone = newPhone;
       patientId = `new-${Date.now()}`;
     }
-
     if (!aptDate) return;
-
     const newApt: Appointment = {
       id: `apt-${Date.now()}`,
       patientId,
@@ -130,14 +134,13 @@ export default function Appointments() {
       status: "pending",
       notes: aptNotes,
     };
-
     setAppointments((prev) => [...prev, newApt].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
     setDialogOpen(false);
     resetForm();
     toast({ title: t("appointments.appointmentAdded") });
   };
 
-  // Group appointments by date
+  // Group by date for list view
   const groupedAppointments = useMemo(() => {
     const groups: Record<string, Appointment[]> = {};
     filteredAppointments.forEach((a) => {
@@ -146,6 +149,17 @@ export default function Appointments() {
     });
     return groups;
   }, [filteredAppointments]);
+
+  // Week days for grid view
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  const weekAppointments = useMemo(() => {
+    return appointments.filter((a) => {
+      const d = parseISO(a.date);
+      return isWithinInterval(d, { start: weekStart, end: weekEnd });
+    }).sort((a, b) => a.time.localeCompare(b.time));
+  }, [appointments, weekStart, weekEnd]);
 
   const timeSlots = Array.from({ length: 18 }, (_, i) => {
     const h = 9 + Math.floor(i / 2);
@@ -157,77 +171,177 @@ export default function Appointments() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{t("appointments.title")}</h1>
-        <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
-          <Plus className="h-4 w-4" />
-          {t("appointments.addAppointment")}
-        </Button>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Tabs value={view} onValueChange={setView} className="w-full sm:w-auto">
-          <TabsList>
-            <TabsTrigger value="today">{t("appointments.today")}</TabsTrigger>
-            <TabsTrigger value="week">{t("appointments.week")}</TabsTrigger>
-            <TabsTrigger value="10days">{t("appointments.tenDays")}</TabsTrigger>
-            <TabsTrigger value="month">{t("appointments.month")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("appointments.searchPatient")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex items-center gap-2">
+          {/* View mode switcher */}
+          <div className="flex items-center border rounded-lg overflow-hidden">
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none gap-1.5"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("appointments.listView")}</span>
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-none gap-1.5"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("appointments.gridView")}</span>
+            </Button>
+          </div>
+          <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
+            <Plus className="h-4 w-4" />
+            {t("appointments.addAppointment")}
+          </Button>
         </div>
       </div>
 
-      {filteredAppointments.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
-            <CalendarDays className="h-10 w-10" />
-            <p>{t("appointments.noAppointments")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(groupedAppointments).map(([date, apts]) => (
-            <div key={date}>
-              <h3 className="text-sm font-medium text-muted-foreground mb-3">
-                {date === todayStr ? t("appointments.today") : format(parseISO(date), "dd.MM.yyyy, EEEE")}
-                <Badge variant="secondary" className="ml-2">{apts.length}</Badge>
-              </h3>
-              <div className="grid gap-2">
-                {apts.map((apt) => (
-                  <Card key={apt.id} className="shadow-sm hover:shadow-md transition-shadow">
-                    <CardContent className="flex items-center gap-4 py-3 px-4">
-                      <div className="flex items-center gap-2 w-20 shrink-0">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-mono font-medium text-sm">{apt.time}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-medium text-sm truncate">{apt.patientName}</span>
-                        </div>
-                        {apt.notes && (
-                          <p className="text-xs text-muted-foreground mt-0.5 truncate">{apt.notes}</p>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="shrink-0 text-xs">
-                        {t(`patients.${apt.treatmentType}`)}
-                      </Badge>
-                      <Badge className={cn("shrink-0 text-xs border-0", statusColors[apt.status])}>
-                        {t(`appointments.status_${apt.status}`)}
-                      </Badge>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+      {viewMode === "list" ? (
+        <>
+          {/* List View */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Tabs value={view} onValueChange={setView} className="w-full sm:w-auto">
+              <TabsList>
+                <TabsTrigger value="today">{t("appointments.today")}</TabsTrigger>
+                <TabsTrigger value="week">{t("appointments.week")}</TabsTrigger>
+                <TabsTrigger value="10days">{t("appointments.tenDays")}</TabsTrigger>
+                <TabsTrigger value="month">{t("appointments.month")}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder={t("appointments.searchPatient")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
-          ))}
-        </div>
+          </div>
+
+          {filteredAppointments.length === 0 ? (
+            <Card className="shadow-sm">
+              <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+                <CalendarDays className="h-10 w-10" />
+                <p>{t("appointments.noAppointments")}</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(groupedAppointments).map(([date, apts]) => (
+                <div key={date}>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                    {date === todayStr ? t("appointments.today") : format(parseISO(date), "dd.MM.yyyy, EEEE")}
+                    <Badge variant="secondary" className="ml-2">{apts.length}</Badge>
+                  </h3>
+                  <div className="grid gap-2">
+                    {apts.map((apt) => (
+                      <Card key={apt.id} className={cn("shadow-sm hover:shadow-md transition-shadow", treatmentColors[apt.treatmentType])}>
+                        <CardContent className="flex items-center gap-4 py-3 px-4">
+                          <div className="flex items-center gap-2 w-20 shrink-0">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-mono font-medium text-sm">{apt.time}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <User className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-medium text-sm truncate">{apt.patientName}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {t(`patients.${apt.treatmentType}`)}
+                              {apt.toothNumber && ` - ${t("patientProfile.tooth")} #${apt.toothNumber}`}
+                            </p>
+                          </div>
+                          <Badge className={cn("shrink-0 text-xs border-0", statusColors[apt.status])}>
+                            {t(`appointments.status_${apt.status}`)}
+                          </Badge>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Grid (Calendar) View */}
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="icon" onClick={() => setWeekStart((s) => addDays(s, -7))}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>
+              {t("appointments.today")}
+            </Button>
+            <Button variant="outline" size="icon" onClick={() => setWeekStart((s) => addDays(s, 7))}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium text-muted-foreground">
+              {format(weekStart, "dd MMM")} — {format(weekEnd, "dd MMM yyyy")}
+            </span>
+          </div>
+
+          <Card className="shadow-sm overflow-hidden">
+            <div className="grid grid-cols-7 border-b">
+              {weekDays.map((day, i) => {
+                const isToday = isSameDay(day, today);
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "py-3 px-2 text-center border-r last:border-r-0",
+                      isToday && "bg-accent"
+                    )}
+                  >
+                    <p className="text-xs font-medium text-muted-foreground">{dayLabelsShort[i]}</p>
+                    <p className={cn("text-lg font-semibold", isToday && "text-primary")}>
+                      {format(day, "d")}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-7 min-h-[400px]">
+              {weekDays.map((day, i) => {
+                const dayStr = format(day, "yyyy-MM-dd");
+                const dayApts = weekAppointments.filter((a) => a.date === dayStr);
+                const isToday = isSameDay(day, today);
+                return (
+                  <div
+                    key={i}
+                    className={cn(
+                      "border-r last:border-r-0 p-1.5 space-y-1 overflow-y-auto max-h-[500px]",
+                      isToday && "bg-accent/30"
+                    )}
+                  >
+                    {dayApts.map((apt) => (
+                      <div
+                        key={apt.id}
+                        className={cn(
+                          "rounded-md p-2 text-xs bg-card shadow-sm cursor-default hover:shadow-md transition-shadow",
+                          treatmentColors[apt.treatmentType]
+                        )}
+                      >
+                        <div className="flex items-center gap-1 mb-1">
+                          <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                          <span className="font-mono font-semibold">{apt.time}</span>
+                        </div>
+                        <p className="font-medium truncate">{apt.patientName}</p>
+                        <p className="text-muted-foreground truncate">
+                          {t(`patients.${apt.treatmentType}`)}
+                          {apt.toothNumber && ` #${apt.toothNumber}`}
+                        </p>
+                        <Badge className={cn("text-[9px] border-0 mt-1 px-1.5 py-0", statusColors[apt.status])}>
+                          {t(`appointments.status_${apt.status}`)}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </>
       )}
 
       {/* Add Appointment Dialog */}
@@ -237,9 +351,7 @@ export default function Appointments() {
             <DialogTitle>{t("appointments.addAppointment")}</DialogTitle>
             <DialogDescription>{t("appointments.addAppointmentDesc")}</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4">
-            {/* Patient mode toggle */}
             <div className="space-y-2">
               <Label>{t("appointments.patientType")}</Label>
               <Tabs value={patientMode} onValueChange={(v) => setPatientMode(v as "existing" | "new")}>
@@ -249,26 +361,13 @@ export default function Appointments() {
                 </TabsList>
               </Tabs>
             </div>
-
             {patientMode === "existing" ? (
               <div className="space-y-2">
                 <Label>{t("appointments.selectPatient")}</Label>
-                <Input
-                  placeholder={t("appointments.searchPatient")}
-                  value={patientSearch}
-                  onChange={(e) => setPatientSearch(e.target.value)}
-                />
+                <Input placeholder={t("appointments.searchPatient")} value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} />
                 <div className="border rounded-md max-h-32 overflow-y-auto">
                   {filteredPatients.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className={cn(
-                        "w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors",
-                        selectedPatientId === p.id && "bg-accent font-medium"
-                      )}
-                      onClick={() => setSelectedPatientId(p.id)}
-                    >
+                    <button key={p.id} type="button" className={cn("w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors", selectedPatientId === p.id && "bg-accent font-medium")} onClick={() => setSelectedPatientId(p.id)}>
                       {p.fullName} — {p.phone}
                     </button>
                   ))}
@@ -276,18 +375,10 @@ export default function Appointments() {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label>{t("patients.fullName")}</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>{t("patients.phone")}</Label>
-                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998..." />
-                </div>
+                <div className="space-y-1"><Label>{t("patients.fullName")}</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
+                <div className="space-y-1"><Label>{t("patients.phone")}</Label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998..." /></div>
               </div>
             )}
-
-            {/* Date */}
             <div className="space-y-1">
               <Label>{t("appointments.date")}</Label>
               <Popover>
@@ -302,29 +393,17 @@ export default function Appointments() {
                 </PopoverContent>
               </Popover>
             </div>
-
-            {/* Time */}
             <div className="space-y-1">
               <Label>{t("appointments.time")}</Label>
               <Select value={aptTime} onValueChange={setAptTime}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeSlots.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{timeSlots.map((ts) => (<SelectItem key={ts} value={ts}>{ts}</SelectItem>))}</SelectContent>
               </Select>
             </div>
-
-            {/* Treatment */}
             <div className="space-y-1">
               <Label>{t("patients.treatmentType")}</Label>
               <Select value={aptTreatment} onValueChange={setAptTreatment}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="implant">{t("patients.implant")}</SelectItem>
                   <SelectItem value="filling">{t("patients.filling")}</SelectItem>
@@ -332,14 +411,11 @@ export default function Appointments() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Notes */}
             <div className="space-y-1">
               <Label>{t("appointments.notes")}</Label>
               <Textarea value={aptNotes} onChange={(e) => setAptNotes(e.target.value)} rows={2} />
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("patients.cancel")}</Button>
             <Button onClick={handleAdd}>{t("patients.save")}</Button>

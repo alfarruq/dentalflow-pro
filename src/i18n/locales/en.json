@@ -15,7 +15,8 @@
     "monthlyRevenue": "Monthly Revenue",
     "revenueOverview": "Revenue Overview",
     "last6Months": "Last 6 months",
-    "todaySchedule": "Today's Schedule"
+    "todaySchedule": "Today's Schedule",
+    "reorderNeeded": "Reorder needed"
   },
   "patients": {
     "title": "Patients",
@@ -101,7 +102,9 @@
     "status_pending": "Pending",
     "status_confirmed": "Confirmed",
     "status_completed": "Completed",
-    "status_cancelled": "Cancelled"
+    "status_cancelled": "Cancelled",
+    "listView": "List View",
+    "gridView": "Calendar View"
   },
   "inventory": { "title": "Inventory" },
   "analytics": { "title": "Analytics" },

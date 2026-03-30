@@ -15,7 +15,8 @@
     "monthlyRevenue": "Месячный доход",
     "revenueOverview": "Обзор дохода",
     "last6Months": "Последние 6 месяцев",
-    "todaySchedule": "Расписание на сегодня"
+    "todaySchedule": "Записи на сегодня",
+    "reorderNeeded": "Нужен заказ"
   },
   "patients": {
     "title": "Пациенты",
@@ -101,7 +102,9 @@
     "status_pending": "Ожидание",
     "status_confirmed": "Подтверждено",
     "status_completed": "Завершено",
-    "status_cancelled": "Отменено"
+    "status_cancelled": "Отменено",
+    "listView": "Список",
+    "gridView": "Календарь"
   },
   "inventory": { "title": "Склад" },
   "analytics": { "title": "Статистика" },

@@ -14,7 +14,9 @@
     "lowStock": "Low Stock Items",
     "monthlyRevenue": "Monthly Revenue",
     "revenueOverview": "Revenue Overview",
-    "last6Months": "Last 6 months"
+    "last6Months": "Last 6 months",
+    "todaySchedule": "Today's Schedule"
+  },
   },
   "patients": {
     "title": "Patients",

@@ -14,7 +14,9 @@
     "lowStock": "Мало на складе",
     "monthlyRevenue": "Месячный доход",
     "revenueOverview": "Обзор дохода",
-    "last6Months": "Последние 6 месяцев"
+    "last6Months": "Последние 6 месяцев",
+    "todaySchedule": "Расписание на сегодня"
+  },
   },
   "patients": {
     "title": "Пациенты",

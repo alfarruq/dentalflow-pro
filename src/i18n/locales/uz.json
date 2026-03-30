@@ -14,7 +14,9 @@
     "lowStock": "Kam qolgan mahsulotlar",
     "monthlyRevenue": "Oylik daromad",
     "revenueOverview": "Daromad ko'rinishi",
-    "last6Months": "Oxirgi 6 oy"
+    "last6Months": "Oxirgi 6 oy",
+    "todaySchedule": "Bugungi Jadval"
+  },
   },
   "patients": {
     "title": "Bemorlar",

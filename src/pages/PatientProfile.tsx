@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import {
   ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
-  Image as ImageIcon, Activity, CalendarPlus, Stethoscope,
+  Image as ImageIcon, CalendarPlus, Stethoscope,
   Banknote, Edit, Save, X,
 } from "lucide-react";
+import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

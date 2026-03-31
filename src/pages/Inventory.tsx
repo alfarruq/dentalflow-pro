@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Package, Plus, Minus, Search } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Package, Plus, Minus, Search, Pencil, Trash2 } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
@@ -24,13 +30,21 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   depleted: { label: "inventory.statusDepleted", className: "bg-destructive/10 text-destructive" },
 };
 
+const emptyForm = { name: "", category: "anesteziya" as InventoryItem["category"], quantity: 0, unit: "dona" as InventoryItem["unit"] };
+
 export default function Inventory() {
   const { t } = useTranslation();
   const [items, setItems] = useState<InventoryItem[]>(mockInventory);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+
+  // Add/Edit modal
   const [modalOpen, setModalOpen] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", category: "anesteziya" as InventoryItem["category"], quantity: 0, unit: "dona" as InventoryItem["unit"] });
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [form, setForm] = useState(emptyForm);
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null);
 
   const filtered = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -46,19 +60,50 @@ export default function Inventory() {
     );
   };
 
-  const handleAdd = () => {
-    if (!newItem.name.trim()) return;
-    const item: InventoryItem = {
-      id: `inv-${Date.now()}`,
-      name: newItem.name.trim(),
-      category: newItem.category,
-      quantity: Math.max(0, newItem.quantity),
-      unit: newItem.unit,
-    };
-    setItems((prev) => [item, ...prev]);
+  const openAdd = () => {
+    setEditingItem(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const openEdit = (item: InventoryItem) => {
+    setEditingItem(item);
+    setForm({ name: item.name, category: item.category, quantity: item.quantity, unit: item.unit });
+    setModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    if (editingItem) {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === editingItem.id
+            ? { ...item, name: form.name.trim(), category: form.category, quantity: Math.max(0, form.quantity), unit: form.unit }
+            : item
+        )
+      );
+      toast.success(t("inventory.itemUpdated"));
+    } else {
+      const item: InventoryItem = {
+        id: `inv-${Date.now()}`,
+        name: form.name.trim(),
+        category: form.category,
+        quantity: Math.max(0, form.quantity),
+        unit: form.unit,
+      };
+      setItems((prev) => [item, ...prev]);
+      toast.success(t("inventory.itemAdded"));
+    }
     setModalOpen(false);
-    setNewItem({ name: "", category: "anesteziya", quantity: 0, unit: "dona" });
-    toast.success(t("inventory.itemAdded"));
+    setEditingItem(null);
+    setForm(emptyForm);
+  };
+
+  const handleDelete = () => {
+    if (!deleteTarget) return;
+    setItems((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+    setDeleteTarget(null);
+    toast.success(t("inventory.itemDeleted"));
   };
 
   const stats = {
@@ -71,7 +116,7 @@ export default function Inventory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t("inventory.title")}</h1>
-        <Button className="gap-1.5" onClick={() => setModalOpen(true)}>
+        <Button className="gap-1.5" onClick={openAdd}>
           <Plus className="h-4 w-4" />
           {t("inventory.addItem")}
         </Button>
@@ -114,18 +159,13 @@ export default function Inventory() {
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters + Table */}
       <Card className="shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t("inventory.searchPlaceholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder={t("inventory.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-full sm:w-[200px]">
@@ -149,12 +189,13 @@ export default function Inventory() {
                 <TableHead className="text-center">{t("inventory.quantity")}</TableHead>
                 <TableHead>{t("inventory.unit")}</TableHead>
                 <TableHead>{t("patients.status")}</TableHead>
+                <TableHead className="text-right">{t("patients.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                     {t("inventory.noItems")}
                   </TableCell>
                 </TableRow>
@@ -166,28 +207,15 @@ export default function Inventory() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal">
-                          {t(`inventory.cat_${item.category}`)}
-                        </Badge>
+                        <Badge variant="secondary" className="font-normal">{t(`inventory.cat_${item.category}`)}</Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => adjustQty(item.id, -1)}
-                            disabled={item.quantity === 0}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustQty(item.id, -1)} disabled={item.quantity === 0}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="w-8 text-center font-semibold tabular-nums">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => adjustQty(item.id, 1)}
-                          >
+                          <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => adjustQty(item.id, 1)}>
                             <Plus className="h-3 w-3" />
                           </Button>
                         </div>
@@ -195,6 +223,16 @@ export default function Inventory() {
                       <TableCell className="text-muted-foreground">{t(`inventory.unit_${item.unit}`)}</TableCell>
                       <TableCell>
                         <Badge className={`border-0 ${cfg.className}`}>{t(cfg.label)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -205,22 +243,22 @@ export default function Inventory() {
         </CardContent>
       </Card>
 
-      {/* Add Item Modal */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      {/* Add / Edit Modal */}
+      <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) setEditingItem(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("inventory.addItem")}</DialogTitle>
-            <DialogDescription>{t("inventory.addItemDesc")}</DialogDescription>
+            <DialogTitle>{editingItem ? t("inventory.editItem") : t("inventory.addItem")}</DialogTitle>
+            <DialogDescription>{editingItem ? t("inventory.editItemDesc") : t("inventory.addItemDesc")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label>{t("inventory.productName")}</Label>
-              <Input value={newItem.name} onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} />
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t("inventory.category")}</Label>
-                <Select value={newItem.category} onValueChange={(v) => setNewItem({ ...newItem, category: v as InventoryItem["category"] })}>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as InventoryItem["category"] })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
@@ -231,7 +269,7 @@ export default function Inventory() {
               </div>
               <div className="grid gap-2">
                 <Label>{t("inventory.unit")}</Label>
-                <Select value={newItem.unit} onValueChange={(v) => setNewItem({ ...newItem, unit: v as InventoryItem["unit"] })}>
+                <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v as InventoryItem["unit"] })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(["dona", "ml", "pachka", "quti", "juft"] as const).map((u) => (
@@ -243,15 +281,33 @@ export default function Inventory() {
             </div>
             <div className="grid gap-2">
               <Label>{t("inventory.quantity")}</Label>
-              <Input type="number" min={0} value={newItem.quantity} onChange={(e) => setNewItem({ ...newItem, quantity: Number(e.target.value) })} />
+              <Input type="number" min={0} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>{t("patients.cancel")}</Button>
-            <Button onClick={handleAdd}>{t("patients.save")}</Button>
+            <Button onClick={handleSave}>{t("patients.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("inventory.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("inventory.deleteConfirmDesc", { name: deleteTarget?.name })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("patients.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("inventory.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

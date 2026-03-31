@@ -155,6 +155,7 @@ export default function PatientProfile() {
   const [localPatient, setLocalPatient] = useState<Patient | undefined>(() =>
     mockPatients.find((p) => p.id === id)
   );
+  const [teethData, setTeethData] = useState<ToothData[]>(createDefaultTeeth);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 

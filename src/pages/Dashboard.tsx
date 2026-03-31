@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Users, CalendarDays, Package, TrendingUp, Plus, Clock, User } from "lucide-react";
+import { Users, CalendarDays, TrendingUp, Plus, Clock, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -68,10 +68,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <StatCard title={t("dashboard.totalPatients")} value="1 284" icon={Users} trend="+12%" />
         <StatCard title={t("dashboard.todayAppointments")} value={String(todayAppointments.length)} icon={CalendarDays} />
-        <StatCard title={t("dashboard.lowStock")} value="5" icon={Package} trend={t("dashboard.reorderNeeded")} />
         <StatCard title={t("dashboard.monthlyRevenue")} value="59 000 000 so'm" icon={TrendingUp} trend="+25.5%" />
       </div>
 

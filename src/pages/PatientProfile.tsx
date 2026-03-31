@@ -225,25 +225,10 @@ export default function PatientProfile() {
 
         {/* Overview Tab — Two-column layout */}
         <TabsContent value="overview">
-          {/* Dental Chart — compact */}
-          <Card className="shadow-sm mb-4">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center justify-between text-lg">
-                <span className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  {t("patientProfile.dentalChart")}
-                </span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                  <Edit className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-muted-foreground/25">
-                <p className="text-sm text-muted-foreground">{t("patientProfile.dentalChartPlaceholder")}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Dental Chart — interactive */}
+          <div className="mb-4">
+            <DentalChart teeth={teethData} onUpdate={setTeethData} />
+          </div>
 
           {/* Two-column grid */}
           <div className="grid gap-4 md:grid-cols-2">

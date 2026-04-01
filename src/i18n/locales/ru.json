@@ -175,7 +175,8 @@
     "svc_cleaning": "Чистка",
     "svc_implant": "Имплант",
     "svc_whitening": "Отбеливание",
-    "svc_crown": "Установка коронки"
+    "svc_crown": "Установка коронки",
+    "customRange": "Выбрать период"
   },
   "profile": { "title": "Профиль" },
   "login": {

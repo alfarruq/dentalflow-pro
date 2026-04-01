@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,15 +22,15 @@ import {
   Cell,
   BarChart,
   Bar,
-  ResponsiveContainer,
 } from "recharts";
-import { Users, Stethoscope, Package, BadgeDollarSign, Trophy } from "lucide-react";
+import { Users, Stethoscope, Package, BadgeDollarSign, Trophy, CalendarIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
-type Period = "weekly" | "monthly" | "yearly";
+type Period = "weekly" | "monthly" | "yearly" | "custom";
 
 const mockData: Record<
-  Period,
+  Exclude<Period, "custom">,
   {
     patients: number;
     treatments: number;
@@ -159,7 +163,7 @@ const mockData: Record<
 };
 
 const PIE_COLORS = [
-  "hsl(var(--primary))",
+  "hsl(var(--chart-1))",
   "hsl(var(--chart-2))",
   "hsl(var(--chart-3))",
   "hsl(var(--chart-4))",
@@ -172,45 +176,87 @@ const fmt = (n: number) =>
 export default function Analytics() {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("monthly");
-  const d = mockData[period];
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
+
+  const effectivePeriod = period === "custom" ? "monthly" : period;
+  const d = mockData[effectivePeriod];
 
   const periodLabel =
-    period === "weekly"
-      ? t("analytics.weekly")
-      : period === "monthly"
-        ? t("analytics.monthly")
-        : t("analytics.yearly");
+    period === "custom" && dateRange.from && dateRange.to
+      ? `${format(dateRange.from, "dd.MM.yyyy")} — ${format(dateRange.to, "dd.MM.yyyy")}`
+      : period === "weekly"
+        ? t("analytics.weekly")
+        : period === "monthly"
+          ? t("analytics.monthly")
+          : t("analytics.yearly");
 
   const maxService = Math.max(...d.services.map((s) => s.count));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-6xl">
       {/* Header + time filter */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">
           {t("analytics.title")}
         </h1>
-        <Tabs
-          value={period}
-          onValueChange={(v) => setPeriod(v as Period)}
-        >
-          <TabsList>
-            <TabsTrigger value="weekly">{t("analytics.weekly")}</TabsTrigger>
-            <TabsTrigger value="monthly">{t("analytics.monthly")}</TabsTrigger>
-            <TabsTrigger value="yearly">{t("analytics.yearly")}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-3">
+          <Tabs
+            value={period}
+            onValueChange={(v) => setPeriod(v as Period)}
+          >
+            <TabsList className="h-9 rounded-xl">
+              <TabsTrigger value="weekly" className="rounded-lg text-[13px]">{t("analytics.weekly")}</TabsTrigger>
+              <TabsTrigger value="monthly" className="rounded-lg text-[13px]">{t("analytics.monthly")}</TabsTrigger>
+              <TabsTrigger value="yearly" className="rounded-lg text-[13px]">{t("analytics.yearly")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Date Range Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={period === "custom" ? "default" : "outline"}
+                size="sm"
+                className="gap-2 rounded-xl"
+              >
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {period === "custom" && dateRange.from
+                  ? `${format(dateRange.from, "dd.MM")} — ${dateRange.to ? format(dateRange.to, "dd.MM") : "..."}`
+                  : t("analytics.customRange")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 rounded-2xl" align="end">
+              <Calendar
+                mode="range"
+                selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                onSelect={(range) => {
+                  setDateRange({ from: range?.from, to: range?.to });
+                  if (range?.from && range?.to) {
+                    setPeriod("custom");
+                  }
+                }}
+                numberOfMonths={2}
+                className={cn("p-4 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {/* Motivation Card */}
-      <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="flex items-center gap-4 py-5">
-          <span className="text-4xl">🏆</span>
+      <Card className="border-primary/10 bg-primary/[0.03]">
+        <CardContent className="flex items-center gap-5 py-6">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-3xl">
+            🏆
+          </div>
           <div>
-            <p className="font-semibold text-foreground text-lg">
+            <p className="font-semibold text-foreground text-[17px]">
               {t("analytics.motivationTitle")}
             </p>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
               {t("analytics.motivationDesc", {
                 period: periodLabel,
                 patients: d.motivationPatients,
@@ -225,39 +271,19 @@ export default function Analytics() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          {
-            icon: Users,
-            label: t("analytics.totalPatients"),
-            value: d.patients,
-          },
-          {
-            icon: Stethoscope,
-            label: t("analytics.totalTreatments"),
-            value: d.treatments,
-          },
-          {
-            icon: Package,
-            label: t("analytics.topMaterial"),
-            value: d.topMaterial,
-          },
-          {
-            icon: BadgeDollarSign,
-            label: t("analytics.totalRevenue"),
-            value: `${fmt(d.revenue)} ${t("common.currency")}`,
-          },
+          { icon: Users, label: t("analytics.totalPatients"), value: d.patients },
+          { icon: Stethoscope, label: t("analytics.totalTreatments"), value: d.treatments },
+          { icon: Package, label: t("analytics.topMaterial"), value: d.topMaterial },
+          { icon: BadgeDollarSign, label: t("analytics.totalRevenue"), value: `${fmt(d.revenue)} ${t("common.currency")}` },
         ].map((c, i) => (
-          <Card key={i} className="shadow-sm">
-            <CardContent className="flex items-center gap-3 py-4">
-              <div className="rounded-lg bg-primary/10 p-2.5">
-                <c.icon className="h-5 w-5 text-primary" />
+          <Card key={i}>
+            <CardContent className="flex items-center gap-3.5 py-5 px-5">
+              <div className="rounded-2xl bg-primary/8 p-3">
+                <c.icon className="h-5 w-5 text-primary stroke-[1.5]" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground truncate">
-                  {c.label}
-                </p>
-                <p className="text-lg font-bold text-foreground truncate">
-                  {c.value}
-                </p>
+                <p className="text-[12px] text-muted-foreground truncate">{c.label}</p>
+                <p className="text-[17px] font-semibold text-foreground truncate mt-0.5">{c.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -266,39 +292,26 @@ export default function Analytics() {
 
       {/* Row: Service Ranking + Pie */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Service ranking */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              {t("analytics.serviceRanking")}
-            </CardTitle>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[15px]">{t("analytics.serviceRanking")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             {d.services.map((s, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-foreground font-medium">
-                    {t(`analytics.svc_${s.key}`)}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {s.count} {t("analytics.timesUnit")}
-                  </span>
+              <div key={i} className="space-y-2">
+                <div className="flex justify-between text-[13px]">
+                  <span className="text-foreground font-medium">{t(`analytics.svc_${s.key}`)}</span>
+                  <span className="text-muted-foreground tabular-nums">{s.count} {t("analytics.timesUnit")}</span>
                 </div>
-                <Progress
-                  value={(s.count / maxService) * 100}
-                  className="h-2.5"
-                />
+                <Progress value={(s.count / maxService) * 100} className="h-2 rounded-full" />
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {/* Pie chart */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              {t("analytics.serviceDistribution")}
-            </CardTitle>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[15px]">{t("analytics.serviceDistribution")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
@@ -314,19 +327,17 @@ export default function Analytics() {
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Pie
-                  data={d.pieData.map((p) => ({
-                    ...p,
-                    name: t(`analytics.svc_${p.key}`),
-                  }))}
+                  data={d.pieData.map((p) => ({ ...p, name: t(`analytics.svc_${p.key}`) }))}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
+                  innerRadius={55}
                   outerRadius={100}
-                  paddingAngle={3}
+                  paddingAngle={4}
                   label={({ name, value }) => `${name} ${value}%`}
                   labelLine={false}
+                  strokeWidth={0}
                 >
                   {d.pieData.map((_, i) => (
                     <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -340,34 +351,31 @@ export default function Analytics() {
 
       {/* Row: Revenue area + Materials bar */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Revenue area chart */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              {t("analytics.revenueTrend")}
-            </CardTitle>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[15px]">{t("analytics.revenueTrend")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
-              config={{
-                value: { label: t("analytics.totalRevenue"), color: "hsl(var(--primary))" },
-              }}
+              config={{ value: { label: t("analytics.totalRevenue"), color: "hsl(var(--primary))" } }}
               className="h-[260px] w-full"
             >
               <AreaChart data={d.revenueChart}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
                     <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                <XAxis dataKey="name" className="text-xs" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                <XAxis dataKey="name" className="text-xs" axisLine={false} tickLine={false} />
                 <YAxis
                   tickFormatter={(v: number) =>
                     v >= 1_000_000 ? `${(v / 1_000_000).toFixed(0)}M` : `${(v / 1_000).toFixed(0)}K`
                   }
                   className="text-xs"
+                  axisLine={false}
+                  tickLine={false}
                 />
                 <ChartTooltip
                   content={<ChartTooltipContent />}
@@ -385,30 +393,25 @@ export default function Analytics() {
           </CardContent>
         </Card>
 
-        {/* Materials bar chart */}
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              {t("analytics.topMaterials")}
-            </CardTitle>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[15px]">{t("analytics.topMaterials")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer
-              config={{
-                used: { label: t("analytics.usedCount"), color: "hsl(var(--primary))" },
-              }}
+              config={{ used: { label: t("analytics.usedCount"), color: "hsl(var(--primary))" } }}
               className="h-[260px] w-full"
             >
               <BarChart data={d.materials} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                <XAxis type="number" className="text-xs" />
-                <YAxis dataKey="name" type="category" width={110} className="text-xs" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                <XAxis type="number" className="text-xs" axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" width={110} className="text-xs" axisLine={false} tickLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar
                   dataKey="used"
                   fill="hsl(var(--primary))"
-                  radius={[0, 4, 4, 0]}
-                  barSize={20}
+                  radius={[0, 6, 6, 0]}
+                  barSize={18}
                 />
               </BarChart>
             </ChartContainer>

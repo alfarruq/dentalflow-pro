@@ -24,10 +24,10 @@ const formatUZS = (value: number) => {
 };
 
 const statusColors: Record<string, string> = {
-  pending: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  confirmed: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  completed: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  cancelled: "bg-destructive/10 text-destructive",
+  pending: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+  confirmed: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  completed: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+  cancelled: "bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400",
 };
 
 const StatCard = ({
@@ -35,24 +35,22 @@ const StatCard = ({
   value,
   icon: Icon,
   trend,
-  iconBg,
 }: {
   title: string;
   value: string;
   icon: React.ElementType;
   trend?: string;
-  iconBg?: string;
 }) => (
-  <Card className="shadow-sm">
-    <CardContent className="flex items-center gap-4 p-5">
-      <div className={cn("flex h-11 w-11 items-center justify-center rounded-xl", iconBg || "bg-accent")}>
-        <Icon className="h-5 w-5 text-primary" />
+  <Card>
+    <CardContent className="flex items-center gap-4 p-6">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8">
+        <Icon className="h-5 w-5 text-primary stroke-[1.5]" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-muted-foreground truncate">{title}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-xl font-bold">{value}</span>
-          {trend && <span className="text-xs font-medium text-primary">{trend}</span>}
+        <p className="text-[13px] text-muted-foreground">{title}</p>
+        <div className="flex items-baseline gap-2 mt-0.5">
+          <span className="text-xl font-semibold tracking-tight">{value}</span>
+          {trend && <span className="text-xs font-medium text-emerald-500">{trend}</span>}
         </div>
       </div>
     </CardContent>
@@ -65,21 +63,20 @@ export default function Dashboard() {
   const todayAppointments = getTodayAppointments();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-6xl">
       <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-3">
         <StatCard title={t("dashboard.totalPatients")} value="1 284" icon={Users} trend="+12%" />
         <StatCard title={t("dashboard.todayAppointments")} value={String(todayAppointments.length)} icon={CalendarDays} />
         <StatCard title={t("dashboard.monthlyRevenue")} value="59 000 000 so'm" icon={TrendingUp} trend="+25.5%" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        {/* Left: Revenue Area Chart */}
-        <Card className="shadow-sm lg:col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("dashboard.monthlyRevenue")}</CardTitle>
-            <p className="text-sm text-muted-foreground">{t("dashboard.last6Months")}</p>
+            <CardTitle className="text-[15px] font-semibold">{t("dashboard.monthlyRevenue")}</CardTitle>
+            <p className="text-[13px] text-muted-foreground">{t("dashboard.last6Months")}</p>
           </CardHeader>
           <CardContent>
             <div className="h-[320px]">
@@ -87,27 +84,29 @@ export default function Dashboard() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(168, 76%, 42%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(168, 76%, 42%)" stopOpacity={0} />
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(215, 14%, 50%)" }} />
-                  <YAxis className="text-xs" tick={{ fill: "hsl(215, 14%, 50%)" }} tickFormatter={formatUZS} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} tickFormatter={formatUZS} axisLine={false} tickLine={false} />
                   <Tooltip
                     formatter={(value: number) => [`${value.toLocaleString()} so'm`, t("dashboard.monthlyRevenue")]}
                     contentStyle={{
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
+                      borderRadius: "12px",
                       color: "hsl(var(--foreground))",
+                      boxShadow: "0 4px 14px -2px rgb(0 0 0 / 0.08)",
+                      fontSize: "13px",
                     }}
                   />
                   <Area
                     type="monotone"
                     dataKey="revenue"
-                    stroke="hsl(168, 76%, 42%)"
-                    strokeWidth={2.5}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
                     fill="url(#revenueGradient)"
                   />
                 </AreaChart>
@@ -116,21 +115,20 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Right: Today's Appointments */}
-        <Card className="shadow-sm lg:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
-              <CardTitle className="text-base">{t("dashboard.todaySchedule")}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <CardTitle className="text-[15px] font-semibold">{t("dashboard.todaySchedule")}</CardTitle>
+              <p className="text-[13px] text-muted-foreground mt-0.5">
                 {todayAppointments.length} {t("appointments.appointments")}
               </p>
             </div>
-            <Button size="sm" className="gap-1.5" onClick={() => navigate("/appointments")}>
+            <Button size="sm" className="gap-1.5 rounded-xl" onClick={() => navigate("/appointments")}>
               <Plus className="h-3.5 w-3.5" />
               {t("appointments.addAppointment")}
             </Button>
           </CardHeader>
-          <CardContent className="px-4">
+          <CardContent className="px-5">
             {todayAppointments.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-12">{t("appointments.noAppointments")}</p>
             ) : (
@@ -138,16 +136,16 @@ export default function Dashboard() {
                 {todayAppointments.slice(0, 10).map((apt) => (
                   <div
                     key={apt.id}
-                    className="flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors duration-200"
                   >
-                    <div className="flex items-center gap-1 w-14 shrink-0">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span className="font-mono text-xs font-semibold">{apt.time}</span>
+                    <div className="flex items-center gap-1.5 w-14 shrink-0">
+                      <Clock className="h-3 w-3 text-muted-foreground stroke-[1.5]" />
+                      <span className="font-mono text-xs font-medium">{apt.time}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium truncate">{apt.patientName}</span>
+                      <div className="flex items-center gap-1.5">
+                        <User className="h-3 w-3 text-muted-foreground stroke-[1.5] shrink-0" />
+                        <span className="text-[13px] font-medium truncate">{apt.patientName}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {t(`patients.${apt.treatmentType}`)}

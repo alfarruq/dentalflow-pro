@@ -40,22 +40,22 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+      <SidebarHeader className="border-b border-sidebar-border/40 px-5 py-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold text-sm">
             D
           </div>
           {!collapsed && (
-            <span className="font-semibold text-base tracking-tight text-foreground">
+            <span className="font-semibold text-[15px] tracking-tight text-foreground">
               DentaFlow
             </span>
           )}
         </div>
       </SidebarHeader>
-      <SidebarContent className="pt-2">
+      <SidebarContent className="pt-3 px-3">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-0.5">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton
@@ -66,11 +66,11 @@ export function AppSidebar() {
                     <NavLink
                       to={item.path}
                       end={item.path === "/"}
-                      className="hover:bg-sidebar-accent/60"
+                      className="rounded-xl transition-all duration-200 hover:bg-sidebar-accent/60"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{t(`nav.${item.key}`)}</span>}
+                      <item.icon className="h-[18px] w-[18px] stroke-[1.5]" />
+                      {!collapsed && <span className="text-[13px]">{t(`nav.${item.key}`)}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -79,7 +79,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border p-3">
+      <SidebarFooter className="border-t border-sidebar-border/40 p-4">
         {!collapsed && user && (
           <div className="mb-2 px-2 text-sm font-medium text-foreground truncate">
             {user.name}
@@ -90,10 +90,10 @@ export function AppSidebar() {
             <SidebarMenuButton
               tooltip={t("common.logout")}
               onClick={handleLogout}
-              className="hover:bg-destructive/10 hover:text-destructive"
+              className="rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
-              <LogOut className="h-4 w-4" />
-              {!collapsed && <span>{t("common.logout")}</span>}
+              <LogOut className="h-[18px] w-[18px] stroke-[1.5]" />
+              {!collapsed && <span className="text-[13px]">{t("common.logout")}</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

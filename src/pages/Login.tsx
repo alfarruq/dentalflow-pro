@@ -34,45 +34,30 @@ export default function Login() {
         <LanguageSwitcher />
         <ThemeToggle />
       </div>
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold text-lg">
+      <Card className="w-full max-w-sm rounded-3xl border-border/40">
+        <CardHeader className="text-center pb-2">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground font-semibold text-lg shadow-sm">
             D
           </div>
-          <CardTitle className="text-xl">{t("login.title")}</CardTitle>
-          <p className="text-sm text-muted-foreground">{t("login.subtitle")}</p>
+          <CardTitle className="text-xl font-semibold">{t("login.title")}</CardTitle>
+          <p className="text-[13px] text-muted-foreground mt-1">{t("login.subtitle")}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="rounded-xl">
                 <AlertDescription>{t("login.error")}</AlertDescription>
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="username">{t("login.username")}</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={t("login.usernamePlaceholder")}
-                autoComplete="username"
-              />
+              <Label htmlFor="username" className="text-[13px]">{t("login.username")}</Label>
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("login.usernamePlaceholder")} autoComplete="username" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">{t("login.password")}</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t("login.passwordPlaceholder")}
-                autoComplete="current-password"
-              />
+              <Label htmlFor="password" className="text-[13px]">{t("login.password")}</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("login.passwordPlaceholder")} autoComplete="current-password" />
             </div>
-            <Button type="submit" className="w-full">
-              {t("login.submit")}
-            </Button>
+            <Button type="submit" className="w-full rounded-xl">{t("login.submit")}</Button>
           </form>
         </CardContent>
       </Card>

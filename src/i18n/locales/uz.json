@@ -175,7 +175,8 @@
     "svc_cleaning": "Tozalash",
     "svc_implant": "Implant",
     "svc_whitening": "Oqartirish",
-    "svc_crown": "Toj o'rnatish"
+    "svc_crown": "Toj o'rnatish",
+    "customRange": "Oraliq tanlash"
   },
   "profile": { "title": "Profil" },
   "login": {

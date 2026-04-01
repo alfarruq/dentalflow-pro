@@ -175,7 +175,8 @@
     "svc_cleaning": "Cleaning",
     "svc_implant": "Implant",
     "svc_whitening": "Whitening",
-    "svc_crown": "Crown Installation"
+    "svc_crown": "Crown Installation",
+    "customRange": "Custom Range"
   },
   "profile": { "title": "Profile" },
   "login": {

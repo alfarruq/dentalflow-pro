@@ -279,41 +279,54 @@ export default function Appointments() {
         <>
           {/* Grid (Calendar) View */}
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="icon" onClick={() => setWeekStart((s) => addDays(s, -7))}>
+            <Button variant="outline" size="icon" className="rounded-full h-9 w-9" onClick={() => setWeekStart((s) => addDays(s, -7))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}>
-              {t("appointments.today")}
-            </Button>
-            <Button variant="outline" size="icon" onClick={() => setWeekStart((s) => addDays(s, 7))}>
+            <span className="text-sm font-medium text-foreground min-w-[200px] text-center">
+              {format(weekStart, "yyyy-MM-dd")} — {format(weekEnd, "yyyy-MM-dd")}
+            </span>
+            <Button variant="outline" size="icon" className="rounded-full h-9 w-9" onClick={() => setWeekStart((s) => addDays(s, 7))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <span className="text-sm font-medium text-muted-foreground">
-              {format(weekStart, "dd MMM")} — {format(weekEnd, "dd MMM yyyy")}
-            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-primary font-medium"
+              onClick={() => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+            >
+              {t("appointments.today")}
+            </Button>
           </div>
 
-          <Card className="shadow-sm overflow-hidden">
-            <div className="grid grid-cols-7 border-b">
+          <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+            {/* Day headers */}
+            <div className="grid grid-cols-7 border-b border-border/60">
               {weekDays.map((day, i) => {
                 const isToday = isSameDay(day, today);
                 return (
                   <div
                     key={i}
                     className={cn(
-                      "py-3 px-2 text-center border-r last:border-r-0",
-                      isToday && "bg-accent"
+                      "py-3 px-2 text-center",
+                      i < 6 && "border-r border-border/40"
                     )}
                   >
-                    <p className="text-xs font-medium text-muted-foreground">{dayLabelsShort[i]}</p>
-                    <p className={cn("text-lg font-semibold", isToday && "text-primary")}>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">{dayLabelsShort[i]}</p>
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center text-lg font-semibold w-9 h-9 rounded-full transition-colors",
+                        isToday && "bg-primary text-primary-foreground"
+                      )}
+                    >
                       {format(day, "d")}
-                    </p>
+                    </span>
                   </div>
                 );
               })}
             </div>
-            <div className="grid grid-cols-7 min-h-[400px]">
+
+            {/* Day columns with appointments */}
+            <div className="grid grid-cols-7 min-h-[500px]">
               {weekDays.map((day, i) => {
                 const dayStr = format(day, "yyyy-MM-dd");
                 const dayApts = weekAppointments.filter((a) => a.date === dayStr);
@@ -322,37 +335,36 @@ export default function Appointments() {
                   <div
                     key={i}
                     className={cn(
-                      "border-r last:border-r-0 p-1.5 space-y-1 overflow-y-auto max-h-[500px]",
-                      isToday && "bg-accent/30"
+                      "p-2 space-y-1.5 overflow-y-auto",
+                      i < 6 && "border-r border-border/40",
+                      isToday && "bg-primary/[0.03]"
                     )}
+                    style={{ maxHeight: "600px" }}
                   >
                     {dayApts.map((apt) => (
                       <div
                         key={apt.id}
                         className={cn(
-                          "rounded-md p-2 text-xs bg-card shadow-sm cursor-default hover:shadow-md transition-shadow",
-                          treatmentColors[apt.treatmentType]
+                          "rounded-xl p-2.5 text-xs cursor-default transition-all hover:scale-[1.02] hover:shadow-sm",
+                          treatmentCardBg[apt.treatmentType]
                         )}
                       >
-                        <div className="flex items-center gap-1 mb-1">
-                          <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                          <span className="font-mono font-semibold">{apt.time}</span>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", treatmentDotColor[apt.treatmentType])} />
+                          <span className="font-mono font-semibold text-primary">{apt.time}</span>
                         </div>
-                        <p className="font-medium truncate">{apt.patientName}</p>
-                        <p className="text-muted-foreground truncate">
+                        <p className="font-semibold text-foreground truncate leading-tight">{apt.patientName}</p>
+                        <p className="text-muted-foreground truncate leading-tight mt-0.5">
                           {t(`patients.${apt.treatmentType}`)}
-                          {apt.toothNumber && ` #${apt.toothNumber}`}
+                          {apt.toothNumber && ` · #${apt.toothNumber}`}
                         </p>
-                        <Badge className={cn("text-[9px] border-0 mt-1 px-1.5 py-0", statusColors[apt.status])}>
-                          {t(`appointments.status_${apt.status}`)}
-                        </Badge>
                       </div>
                     ))}
                   </div>
                 );
               })}
             </div>
-          </Card>
+          </div>
         </>
       )}
 

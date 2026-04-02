@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { CalendarDays, Plus, Search, Clock, User, List, LayoutGrid, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, Plus, Search, Clock, User, List, CalendarRange, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addDays, addMonths, isWithinInterval, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { uz } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

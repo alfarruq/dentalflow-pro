@@ -185,25 +185,27 @@ export default function Appointments() {
         <h1 className="text-2xl font-semibold tracking-tight">{t("appointments.title")}</h1>
         <div className="flex items-center gap-2">
           {/* View mode switcher */}
-          <div className="flex items-center border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-none gap-1.5"
+          <div className="flex items-center bg-muted rounded-full p-1 gap-0.5">
+            <button
               onClick={() => setViewMode("list")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
+                viewMode === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
               <List className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("appointments.listView")}</span>
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "default" : "ghost"}
-              size="sm"
-              className="rounded-none gap-1.5"
+              {t("appointments.listView")}
+            </button>
+            <button
               onClick={() => setViewMode("grid")}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
+                viewMode === "grid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
             >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("appointments.gridView")}</span>
-            </Button>
+              <CalendarRange className="h-4 w-4" />
+              {t("appointments.gridView")}
+            </button>
           </div>
           <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" />

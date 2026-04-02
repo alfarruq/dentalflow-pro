@@ -103,8 +103,9 @@
     "status_confirmed": "Tasdiqlangan",
     "status_completed": "Tugallangan",
     "status_cancelled": "Bekor qilingan",
-    "listView": "Ro'yxat ko'rinishi",
-    "gridView": "Kalendar ko'rinishi"
+    "listView": "Kun",
+    "gridView": "Hafta",
+    "monthView": "Oy"
   },
   "inventory": {
     "title": "Ombor",

@@ -103,8 +103,9 @@
     "status_confirmed": "Подтверждено",
     "status_completed": "Завершено",
     "status_cancelled": "Отменено",
-    "listView": "Список",
-    "gridView": "Календарь"
+    "listView": "День",
+    "gridView": "Неделя",
+    "monthView": "Месяц"
   },
   "inventory": {
     "title": "Склад",

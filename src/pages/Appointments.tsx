@@ -32,6 +32,18 @@ const treatmentColors: Record<string, string> = {
   cleaning: "border-l-4 border-l-emerald-400",
 };
 
+const treatmentCardBg: Record<string, string> = {
+  implant: "bg-blue-50 dark:bg-blue-950/30",
+  filling: "bg-amber-50 dark:bg-amber-950/30",
+  cleaning: "bg-emerald-50 dark:bg-emerald-950/30",
+};
+
+const treatmentDotColor: Record<string, string> = {
+  implant: "bg-blue-500",
+  filling: "bg-amber-500",
+  cleaning: "bg-emerald-500",
+};
+
 const dayLabelsShort = ["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"];
 
 const VIEW_MODE_KEY = "dentaflow-appointments-view";

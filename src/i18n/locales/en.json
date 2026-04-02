@@ -103,8 +103,9 @@
     "status_confirmed": "Confirmed",
     "status_completed": "Completed",
     "status_cancelled": "Cancelled",
-    "listView": "List View",
-    "gridView": "Calendar View"
+    "listView": "Day",
+    "gridView": "Week",
+    "monthView": "Month"
   },
   "inventory": {
     "title": "Inventory",

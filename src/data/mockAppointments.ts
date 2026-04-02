@@ -41,33 +41,48 @@ export function generateMockAppointments(): Appointment[] {
   const pick = <T,>(arr: T[]) => arr[Math.floor(rng() * arr.length)];
   const appointments: Appointment[] = [];
 
-  const today = new Date(2026, 2, 30);
+  const today = new Date();
+  // Generate for current week + surrounding days
+  const timeSlots = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "14:00", "14:30", "15:00", "15:30", "16:00"];
 
-  for (let i = 0; i < 60; i++) {
-    const dayOffset = Math.floor(rng() * 38) - 3;
+  let id = 1;
+  for (let dayOffset = -7; dayOffset <= 30; dayOffset++) {
     const date = new Date(today);
     date.setDate(date.getDate() + dayOffset);
 
-    const hour = 9 + Math.floor(rng() * 9);
-    const minute = Math.floor(rng() * 4) * 15;
+    // 6-10 appointments per day
+    const aptsPerDay = 6 + Math.floor(rng() * 5);
+    const usedSlots = new Set<string>();
 
-    const patient = pick(mockPatients);
-    const status: AppointmentStatus = dayOffset < 0 ? "completed" : pick(appointmentStatuses);
-    const treatment = pick(treatments);
-    const toothNumber = treatment !== "cleaning" ? Math.floor(rng() * 32) + 1 : undefined;
+    for (let j = 0; j < aptsPerDay; j++) {
+      let slot = pick(timeSlots);
+      // avoid exact duplicates
+      let attempts = 0;
+      while (usedSlots.has(slot) && attempts < 20) {
+        slot = pick(timeSlots);
+        attempts++;
+      }
+      if (usedSlots.has(slot)) continue;
+      usedSlots.add(slot);
 
-    appointments.push({
-      id: `apt-${String(i + 1).padStart(3, "0")}`,
-      patientId: patient.id,
-      patientName: patient.fullName,
-      phone: patient.phone,
-      date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
-      time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
-      treatmentType: treatment,
-      toothNumber,
-      status,
-      notes: pick(noteOptions),
-    });
+      const patient = pick(mockPatients);
+      const status: AppointmentStatus = dayOffset < 0 ? "completed" : pick(appointmentStatuses);
+      const treatment = pick(treatments);
+      const toothNumber = treatment !== "cleaning" ? Math.floor(rng() * 32) + 1 : undefined;
+
+      appointments.push({
+        id: `apt-${String(id++).padStart(3, "0")}`,
+        patientId: patient.id,
+        patientName: patient.fullName,
+        phone: patient.phone,
+        date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+        time: slot,
+        treatmentType: treatment,
+        toothNumber,
+        status,
+        notes: pick(noteOptions),
+      });
+    }
   }
 
   return appointments.sort((a, b) => {

@@ -12,6 +12,7 @@ import PatientProfile from "./pages/PatientProfile";
 import Appointments from "./pages/Appointments";
 import Inventory from "./pages/Inventory";
 import Analytics from "./pages/Analytics";
+import Finance from "./pages/Finance";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,7 @@ const App = () => (
                       <Route path="/patients/:id" element={<PatientProfile />} />
                       <Route path="/appointments" element={<Appointments />} />
                       <Route path="/inventory" element={<Inventory />} />
+                      <Route path="/finance" element={<Finance />} />
                       <Route path="/analytics" element={<Analytics />} />
                       <Route path="/profile" element={<Profile />} />
                       <Route path="*" element={<NotFound />} />

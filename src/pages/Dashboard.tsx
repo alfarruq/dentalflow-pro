@@ -1,11 +1,13 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Users, CalendarDays, TrendingUp, Plus, Clock, User } from "lucide-react";
+import { Users, CalendarDays, TrendingUp, Plus, Clock, User, Bell } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { getTodayAppointments } from "@/data/mockAppointments";
+import { mockRecurringExpenses } from "@/data/mockFinance";
 import { cn } from "@/lib/utils";
 
 const chartData = [
@@ -61,6 +63,17 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const todayAppointments = getTodayAppointments();
+  const today = new Date();
+
+  const upcomingPayments = useMemo(() => {
+    const todayDay = today.getDate();
+    return mockRecurringExpenses.filter((r) => {
+      if (!r.isActive) return false;
+      let diff = r.dayOfMonth - todayDay;
+      if (diff < 0) diff += 30;
+      return diff >= 0 && diff <= 3;
+    });
+  }, [today]);
 
   return (
     <div className="space-y-8 max-w-6xl">
@@ -162,6 +175,39 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Upcoming payments notification */}
+      {upcomingPayments.length > 0 && (
+        <Card className="border-amber-200/60 dark:border-amber-500/20 bg-amber-50/30 dark:bg-amber-500/5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-amber-500 stroke-[1.5]" />
+                <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">
+                  {t("finance.dashboardUpcoming")}
+                </span>
+                <Badge className="bg-amber-100 text-amber-600 border-0 text-[10px] dark:bg-amber-500/20 dark:text-amber-400">
+                  {upcomingPayments.length}
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="text-[12px] text-amber-600 dark:text-amber-400" onClick={() => navigate("/finance")}>
+                {t("finance.title")} →
+              </Button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {upcomingPayments.map((r) => (
+                <div key={r.id} className="flex items-center justify-between bg-card/80 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-[13px] font-medium">{r.description}</p>
+                    <p className="text-[12px] text-muted-foreground">{t("finance.dueDay", { day: r.dayOfMonth })}</p>
+                  </div>
+                  <span className="text-[13px] font-semibold tabular-nums">{r.amount.toLocaleString("uz-UZ")} so'm</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

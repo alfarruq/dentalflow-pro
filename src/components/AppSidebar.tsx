@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, Package, BarChart3, UserCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Package, BarChart3, UserCircle, LogOut, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -21,6 +21,7 @@ const navItems = [
   { key: "patients", path: "/patients", icon: Users },
   { key: "appointments", path: "/appointments", icon: CalendarDays },
   { key: "inventory", path: "/inventory", icon: Package },
+  { key: "finance", path: "/finance", icon: Wallet },
   { key: "analytics", path: "/analytics", icon: BarChart3 },
   { key: "profile", path: "/profile", icon: UserCircle },
 ];

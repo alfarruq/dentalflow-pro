@@ -30,7 +30,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   depleted: { label: "inventory.statusDepleted", className: "bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400" },
 };
 
-const emptyForm = { name: "", category: "anesteziya" as InventoryItem["category"], quantity: 0, unit: "dona" as InventoryItem["unit"] };
+const emptyForm = { name: "", category: "anesteziya" as InventoryItem["category"], quantity: 0, unit: "dona" as InventoryItem["unit"], unitPrice: 0 };
 
 export default function Inventory() {
   const { t } = useTranslation();
@@ -57,15 +57,15 @@ export default function Inventory() {
   };
 
   const openAdd = () => { setEditingItem(null); setForm(emptyForm); setModalOpen(true); };
-  const openEdit = (item: InventoryItem) => { setEditingItem(item); setForm({ name: item.name, category: item.category, quantity: item.quantity, unit: item.unit }); setModalOpen(true); };
+  const openEdit = (item: InventoryItem) => { setEditingItem(item); setForm({ name: item.name, category: item.category, quantity: item.quantity, unit: item.unit, unitPrice: item.unitPrice }); setModalOpen(true); };
 
   const handleSave = () => {
     if (!form.name.trim()) return;
     if (editingItem) {
-      setItems((prev) => prev.map((item) => item.id === editingItem.id ? { ...item, name: form.name.trim(), category: form.category, quantity: Math.max(0, form.quantity), unit: form.unit } : item));
+      setItems((prev) => prev.map((item) => item.id === editingItem.id ? { ...item, name: form.name.trim(), category: form.category, quantity: Math.max(0, form.quantity), unit: form.unit, unitPrice: Math.max(0, form.unitPrice) } : item));
       toast.success(t("inventory.itemUpdated"));
     } else {
-      const item: InventoryItem = { id: `inv-${Date.now()}`, name: form.name.trim(), category: form.category, quantity: Math.max(0, form.quantity), unit: form.unit };
+      const item: InventoryItem = { id: `inv-${Date.now()}`, name: form.name.trim(), category: form.category, quantity: Math.max(0, form.quantity), unit: form.unit, unitPrice: Math.max(0, form.unitPrice) };
       setItems((prev) => [item, ...prev]);
       toast.success(t("inventory.itemAdded"));
     }
@@ -143,6 +143,7 @@ export default function Inventory() {
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.category")}</TableHead>
                 <TableHead className="text-center text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.quantity")}</TableHead>
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.unit")}</TableHead>
+                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.unitPrice")}</TableHead>
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
                 <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.actions")}</TableHead>
               </TableRow>
@@ -150,7 +151,7 @@ export default function Inventory() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">{t("inventory.noItems")}</TableCell>
+                  <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">{t("inventory.noItems")}</TableCell>
                 </TableRow>
               ) : (
                 filtered.map((item) => {
@@ -174,6 +175,7 @@ export default function Inventory() {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-[13px]">{t(`inventory.unit_${item.unit}`)}</TableCell>
+                      <TableCell className="text-right text-[13px] tabular-nums font-medium">{item.unitPrice.toLocaleString("uz-UZ")} so'm</TableCell>
                       <TableCell>
                         <Badge className={`border-0 text-[11px] ${cfg.className}`}>{t(cfg.label)}</Badge>
                       </TableCell>
@@ -223,9 +225,15 @@ export default function Inventory() {
                 </Select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label className="text-[13px]">{t("inventory.quantity")}</Label>
-              <Input type="number" min={0} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-[13px]">{t("inventory.quantity")}</Label>
+                <Input type="number" min={0} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
+              </div>
+              <div className="grid gap-2 col-span-2">
+                <Label className="text-[13px]">{t("inventory.unitPrice")}</Label>
+                <Input type="number" min={0} value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: Number(e.target.value) })} placeholder="so'm" />
+              </div>
             </div>
           </div>
           <DialogFooter>

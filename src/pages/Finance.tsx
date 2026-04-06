@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { format, subDays, subMonths, subYears, isAfter, isBefore, startOfDay, endOfDay, parseISO } from "date-fns";
 import {
-  Wallet, TrendingDown, TrendingUp, Plus, Pencil, Trash2,
-  CalendarClock, Bell, ArrowDownUp, Sparkles,
+  TrendingDown, TrendingUp, Plus, Pencil, Trash2,
+  CalendarClock, Bell, Sparkles, ArrowUpRight, ArrowDownRight,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -20,11 +24,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
-  mockExpenses, mockRecurringExpenses, mockGrossRevenue,
-  expenseCategories, type Expense, type ExpenseCategory, type RecurringExpense,
+  mockExpenses, mockIncomes, mockRecurringExpenses,
+  expenseCategories, incomeCategories,
+  type Expense, type ExpenseCategory, type Income, type IncomeCategory, type RecurringExpense,
 } from "@/data/mockFinance";
 
 const categoryColors: Record<ExpenseCategory, string> = {
@@ -45,17 +51,38 @@ const categoryBadgeClass: Record<ExpenseCategory, string> = {
   boshqa: "bg-gray-50 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400",
 };
 
+const incomeBadgeClass: Record<IncomeCategory, string> = {
+  implant: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+  plomba: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
+  tozalash: "bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400",
+  oqartirish: "bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400",
+  toj: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  boshqa_daromad: "bg-gray-50 text-gray-600 dark:bg-gray-500/10 dark:text-gray-400",
+};
+
 const formatUZS = (v: number) => v.toLocaleString("uz-UZ") + " so'm";
 
+type TimeFilter = "today" | "week" | "month" | "year" | "custom";
+type TransactionType = "all" | "income" | "expense";
+
 const emptyExpenseForm = { description: "", category: "materiallar" as ExpenseCategory, amount: 0 };
+const emptyIncomeForm = { description: "", category: "plomba" as IncomeCategory, amount: 0, patientName: "" };
 const emptyRecurringForm = { description: "", category: "ijara" as ExpenseCategory, amount: 0, dayOfMonth: 1 };
 
 export default function Finance() {
   const { t } = useTranslation();
+  const today = new Date();
 
   const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
+  const [incomes, setIncomes] = useState<Income[]>(mockIncomes);
   const [recurring, setRecurring] = useState<RecurringExpense[]>(mockRecurringExpenses);
-  const [activeTab, setActiveTab] = useState("expenses");
+  const [activeTab, setActiveTab] = useState("transactions");
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("month");
+  const [txFilter, setTxFilter] = useState<TransactionType>("all");
+
+  // Custom date range
+  const [customFrom, setCustomFrom] = useState<Date | undefined>();
+  const [customTo, setCustomTo] = useState<Date | undefined>();
 
   // Expense modal
   const [expModalOpen, setExpModalOpen] = useState(false);
@@ -63,25 +90,76 @@ export default function Finance() {
   const [expForm, setExpForm] = useState(emptyExpenseForm);
   const [deleteExpTarget, setDeleteExpTarget] = useState<Expense | null>(null);
 
+  // Income modal
+  const [incModalOpen, setIncModalOpen] = useState(false);
+  const [editingInc, setEditingInc] = useState<Income | null>(null);
+  const [incForm, setIncForm] = useState(emptyIncomeForm);
+
   // Recurring modal
   const [recModalOpen, setRecModalOpen] = useState(false);
   const [editingRec, setEditingRec] = useState<RecurringExpense | null>(null);
   const [recForm, setRecForm] = useState(emptyRecurringForm);
   const [deleteRecTarget, setDeleteRecTarget] = useState<RecurringExpense | null>(null);
 
-  const totalExpenses = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
-  const materialCosts = useMemo(() => expenses.filter((e) => e.category === "materiallar").reduce((s, e) => s + e.amount, 0), [expenses]);
-  const operatingExpenses = totalExpenses - materialCosts;
-  const netProfit = mockGrossRevenue - totalExpenses;
+  // Date range
+  const dateRange = useMemo(() => {
+    const end = endOfDay(today);
+    let start: Date;
+    switch (timeFilter) {
+      case "today": start = startOfDay(today); break;
+      case "week": start = startOfDay(subDays(today, 7)); break;
+      case "month": start = startOfDay(subMonths(today, 1)); break;
+      case "year": start = startOfDay(subYears(today, 1)); break;
+      case "custom":
+        start = customFrom ? startOfDay(customFrom) : startOfDay(subMonths(today, 1));
+        return { start, end: customTo ? endOfDay(customTo) : end };
+      default: start = startOfDay(subMonths(today, 1)); break;
+    }
+    return { start, end };
+  }, [timeFilter, customFrom, customTo]);
 
+  const inRange = (dateStr: string) => {
+    const d = parseISO(dateStr);
+    return !isBefore(d, dateRange.start) && !isAfter(d, dateRange.end);
+  };
+
+  const filteredExpenses = useMemo(() => expenses.filter((e) => inRange(e.date)), [expenses, dateRange]);
+  const filteredIncomes = useMemo(() => incomes.filter((i) => inRange(i.date)), [incomes, dateRange]);
+
+  const totalIncome = useMemo(() => filteredIncomes.reduce((s, i) => s + i.amount, 0), [filteredIncomes]);
+  const totalExpenses = useMemo(() => filteredExpenses.reduce((s, e) => s + e.amount, 0), [filteredExpenses]);
+  const netProfit = totalIncome - totalExpenses;
+
+  // Unified transactions
+  const transactions = useMemo(() => {
+    const all: Array<{ id: string; date: string; type: "income" | "expense"; category: string; description: string; amount: number; patientName?: string; isAutomatic?: boolean }> = [];
+    if (txFilter !== "expense") filteredIncomes.forEach((i) => all.push({ ...i, type: "income" }));
+    if (txFilter !== "income") filteredExpenses.forEach((e) => all.push({ ...e, type: "expense" }));
+    return all.sort((a, b) => b.date.localeCompare(a.date));
+  }, [filteredIncomes, filteredExpenses, txFilter]);
+
+  // Cashflow chart data
+  const cashflowData = useMemo(() => {
+    const map: Record<string, { date: string; income: number; expense: number }> = {};
+    filteredIncomes.forEach((i) => {
+      if (!map[i.date]) map[i.date] = { date: i.date, income: 0, expense: 0 };
+      map[i.date].income += i.amount;
+    });
+    filteredExpenses.forEach((e) => {
+      if (!map[e.date]) map[e.date] = { date: e.date, income: 0, expense: 0 };
+      map[e.date].expense += e.amount;
+    });
+    return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredIncomes, filteredExpenses]);
+
+  // Donut data for expenses
   const donutData = useMemo(() => {
     const map: Record<string, number> = {};
-    expenses.forEach((e) => { map[e.category] = (map[e.category] || 0) + e.amount; });
+    filteredExpenses.forEach((e) => { map[e.category] = (map[e.category] || 0) + e.amount; });
     return Object.entries(map).map(([cat, value]) => ({ name: cat, value }));
-  }, [expenses]);
+  }, [filteredExpenses]);
 
-  // Upcoming recurring (next 3 days)
-  const today = new Date();
+  // Upcoming recurring
   const upcomingRecurring = useMemo(() => {
     const todayDay = today.getDate();
     return recurring.filter((r) => {
@@ -90,7 +168,7 @@ export default function Finance() {
       if (diff < 0) diff += 30;
       return diff >= 0 && diff <= 3;
     });
-  }, [recurring, today]);
+  }, [recurring]);
 
   // Expense CRUD
   const openAddExp = () => { setEditingExp(null); setExpForm(emptyExpenseForm); setExpModalOpen(true); };
@@ -101,7 +179,7 @@ export default function Finance() {
       setExpenses((prev) => prev.map((e) => e.id === editingExp.id ? { ...e, ...expForm, description: expForm.description.trim() } : e));
       toast.success(t("finance.expenseUpdated"));
     } else {
-      const newExp: Expense = { id: `exp-${Date.now()}`, date: new Date().toISOString().split("T")[0], ...expForm, description: expForm.description.trim() };
+      const newExp: Expense = { id: `exp-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...expForm, description: expForm.description.trim() };
       setExpenses((prev) => [newExp, ...prev]);
       toast.success(t("finance.expenseAdded"));
     }
@@ -112,6 +190,21 @@ export default function Finance() {
     setExpenses((prev) => prev.filter((e) => e.id !== deleteExpTarget.id));
     setDeleteExpTarget(null);
     toast.success(t("finance.expenseDeleted"));
+  };
+
+  // Income CRUD
+  const openAddInc = () => { setEditingInc(null); setIncForm(emptyIncomeForm); setIncModalOpen(true); };
+  const saveInc = () => {
+    if (!incForm.description.trim() || incForm.amount <= 0) return;
+    if (editingInc) {
+      setIncomes((prev) => prev.map((i) => i.id === editingInc.id ? { ...i, ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined } : i));
+      toast.success(t("finance.incomeUpdated"));
+    } else {
+      const newInc: Income = { id: `inc-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined };
+      setIncomes((prev) => [newInc, ...prev]);
+      toast.success(t("finance.incomeAdded"));
+    }
+    setIncModalOpen(false);
   };
 
   // Recurring CRUD
@@ -139,7 +232,29 @@ export default function Finance() {
     setRecurring((prev) => prev.map((r) => r.id === id ? { ...r, isActive: !r.isActive } : r));
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const timeFilters: { key: TimeFilter; label: string }[] = [
+    { key: "today", label: t("finance.filterToday") },
+    { key: "week", label: t("finance.filterWeek") },
+    { key: "month", label: t("finance.filterMonth") },
+    { key: "year", label: t("finance.filterYear") },
+    { key: "custom", label: t("finance.filterCustom") },
+  ];
+
+  const CashflowTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-card border border-border/50 rounded-xl px-4 py-3 shadow-lg">
+        <p className="text-[12px] text-muted-foreground mb-1">{label}</p>
+        {payload.map((p: any) => (
+          <p key={p.dataKey} className="text-[13px] font-medium" style={{ color: p.fill }}>
+            {p.dataKey === "income" ? t("finance.income") : t("finance.expenses")}: {formatUZS(p.value)}
+          </p>
+        ))}
+      </div>
+    );
+  };
+
+  const DonutTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.length) return null;
     const d = payload[0];
     return (
@@ -152,64 +267,104 @@ export default function Finance() {
 
   return (
     <div className="space-y-8 max-w-6xl">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t("finance.title")}</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2" onClick={openAddExp}>
+            <Plus className="h-4 w-4" />
+            {t("finance.addExpense")}
+          </Button>
+          <Button className="gap-2" onClick={openAddInc}>
+            <Plus className="h-4 w-4" />
+            {t("finance.addIncome")}
+          </Button>
+        </div>
       </div>
 
-      {/* Net Profit Hero */}
-      <Card className="relative overflow-hidden">
-        <CardContent className="p-8 text-center">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 pointer-events-none" />
-          <div className="relative">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-primary stroke-[1.5]" />
-              <span className="text-[13px] font-medium text-muted-foreground uppercase tracking-wider">
-                {t("finance.netProfit")}
-              </span>
-            </div>
-            <p className={`text-4xl md:text-5xl font-bold tracking-tight ${netProfit >= 0 ? "text-emerald-500" : "text-destructive"}`}
-              style={{ textShadow: netProfit >= 0 ? "0 0 40px rgba(16,185,129,0.15)" : "0 0 40px rgba(239,68,68,0.15)" }}>
-              {formatUZS(netProfit)}
-            </p>
-            <p className="text-[13px] text-muted-foreground mt-3">
-              {t("finance.profitFormula")}
-            </p>
+      {/* Time Filter Segmented Control */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="inline-flex items-center bg-secondary/60 rounded-2xl p-1 gap-0.5">
+          {timeFilters.map((tf) => (
+            <button
+              key={tf.key}
+              onClick={() => setTimeFilter(tf.key)}
+              className={cn(
+                "px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                timeFilter === tf.key
+                  ? "bg-card shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tf.label}
+            </button>
+          ))}
+        </div>
+        {timeFilter === "custom" && (
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("gap-2 text-[13px]", !customFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {customFrom ? format(customFrom, "dd.MM.yyyy") : t("finance.fromDate")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            <span className="text-muted-foreground text-[13px]">—</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("gap-2 text-[13px]", !customTo && "text-muted-foreground")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {customTo ? format(customTo, "dd.MM.yyyy") : t("finance.toDate")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={customTo} onSelect={setCustomTo} className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
 
-      {/* Stats row */}
+      {/* 3 Summary Cards */}
       <div className="grid gap-5 sm:grid-cols-3">
-        <Card>
+        <Card className="border-emerald-200/40 dark:border-emerald-500/20">
           <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8">
-              <TrendingUp className="h-5 w-5 text-primary stroke-[1.5]" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+              <TrendingUp className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">{t("finance.grossRevenue")}</p>
-              <span className="text-xl font-semibold">{formatUZS(mockGrossRevenue)}</span>
+              <p className="text-[13px] text-muted-foreground">{t("finance.totalIncome")}</p>
+              <span className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">{formatUZS(totalIncome)}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-red-200/40 dark:border-red-500/20">
           <CardContent className="flex items-center gap-4 p-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
               <TrendingDown className="h-5 w-5 text-red-500 stroke-[1.5]" />
             </div>
             <div>
               <p className="text-[13px] text-muted-foreground">{t("finance.totalExpenses")}</p>
-              <span className="text-xl font-semibold">{formatUZS(totalExpenses)}</span>
+              <span className="text-xl font-semibold text-red-500">{formatUZS(totalExpenses)}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 dark:bg-amber-500/10">
-              <ArrowDownUp className="h-5 w-5 text-amber-500 stroke-[1.5]" />
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 pointer-events-none" />
+          <CardContent className="flex items-center gap-4 p-6 relative">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8">
+              <Sparkles className="h-5 w-5 text-primary stroke-[1.5]" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">{t("finance.materialCosts")}</p>
-              <span className="text-xl font-semibold">{formatUZS(materialCosts)}</span>
+              <p className="text-[13px] text-muted-foreground">{t("finance.netProfit")}</p>
+              <span className={cn("text-xl font-bold", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}
+                style={{ textShadow: netProfit >= 0 ? "0 0 30px rgba(16,185,129,0.15)" : "0 0 30px rgba(239,68,68,0.15)" }}>
+                {formatUZS(netProfit)}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -238,34 +393,45 @@ export default function Finance() {
         </Card>
       )}
 
-      {/* Main content tabs */}
+      {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-secondary/60 p-1 rounded-2xl">
-          <TabsTrigger value="expenses" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
-            {t("finance.expenses")}
+          <TabsTrigger value="transactions" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
+            {t("finance.allTransactions")}
           </TabsTrigger>
           <TabsTrigger value="recurring" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
             {t("finance.scheduledExpenses")}
           </TabsTrigger>
-          <TabsTrigger value="breakdown" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
+          <TabsTrigger value="analytics" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
             {t("finance.breakdown")}
           </TabsTrigger>
         </TabsList>
 
-        {/* Expenses Tab */}
-        <TabsContent value="expenses" className="mt-6">
+        {/* Transactions Tab */}
+        <TabsContent value="transactions" className="mt-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-[15px]">{t("finance.allExpenses")}</CardTitle>
-              <Button className="gap-2" onClick={openAddExp}>
-                <Plus className="h-4 w-4" />
-                {t("finance.addExpense")}
-              </Button>
+              <CardTitle className="text-[15px]">{t("finance.allTransactions")}</CardTitle>
+              <div className="inline-flex items-center bg-secondary/60 rounded-xl p-0.5 gap-0.5">
+                {(["all", "income", "expense"] as TransactionType[]).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setTxFilter(type)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all",
+                      txFilter === type ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {t(`finance.filter_${type}`)}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/40 hover:bg-transparent">
+                    <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground w-10"></TableHead>
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("finance.date")}</TableHead>
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("finance.description")}</TableHead>
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.category")}</TableHead>
@@ -274,35 +440,63 @@ export default function Finance() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expenses.length === 0 ? (
+                  {transactions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-16 text-muted-foreground">{t("finance.noExpenses")}</TableCell>
+                      <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">{t("finance.noTransactions")}</TableCell>
                     </TableRow>
                   ) : (
-                    expenses.map((exp) => (
-                      <TableRow key={exp.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
-                        <TableCell className="text-[13px] text-muted-foreground">{exp.date}</TableCell>
-                        <TableCell className="font-medium text-[13px]">
-                          {exp.description}
-                          {exp.isAutomatic && (
+                    transactions.map((tx) => (
+                      <TableRow key={tx.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
+                        <TableCell className="w-10">
+                          <div className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-lg",
+                            tx.type === "income" ? "bg-emerald-50 dark:bg-emerald-500/10" : "bg-red-50 dark:bg-red-500/10"
+                          )}>
+                            {tx.type === "income"
+                              ? <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+                              : <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
+                            }
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-[13px] text-muted-foreground">{tx.date}</TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium text-[13px]">{tx.description}</span>
+                            {tx.patientName && (
+                              <p className="text-[12px] text-muted-foreground">{tx.patientName}</p>
+                            )}
+                          </div>
+                          {tx.isAutomatic && (
                             <Badge variant="secondary" className="ml-2 text-[10px]">{t("finance.auto")}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge className={`border-0 text-[11px] ${categoryBadgeClass[exp.category]}`}>
-                            {t(`finance.cat_${exp.category}`)}
+                          <Badge className={cn(
+                            "border-0 text-[11px]",
+                            tx.type === "expense"
+                              ? categoryBadgeClass[tx.category as ExpenseCategory] || ""
+                              : incomeBadgeClass[tx.category as IncomeCategory] || ""
+                          )}>
+                            {tx.type === "expense" ? t(`finance.cat_${tx.category}`) : t(`finance.inc_${tx.category}`)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-semibold text-[13px] tabular-nums">{formatUZS(exp.amount)}</TableCell>
+                        <TableCell className={cn(
+                          "text-right font-semibold text-[13px] tabular-nums",
+                          tx.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
+                        )}>
+                          {tx.type === "income" ? "+" : "−"}{formatUZS(tx.amount)}
+                        </TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditExp(exp)}>
-                              <Pencil className="h-3.5 w-3.5 stroke-[1.5]" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => setDeleteExpTarget(exp)}>
-                              <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
-                            </Button>
-                          </div>
+                          {tx.type === "expense" && (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEditExp(expenses.find((e) => e.id === tx.id)!)}>
+                                <Pencil className="h-3.5 w-3.5 stroke-[1.5]" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => setDeleteExpTarget(expenses.find((e) => e.id === tx.id)!)}>
+                                <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
@@ -343,7 +537,7 @@ export default function Finance() {
                     <TableRow key={rec.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
                       <TableCell className="font-medium text-[13px]">{rec.description}</TableCell>
                       <TableCell>
-                        <Badge className={`border-0 text-[11px] ${categoryBadgeClass[rec.category]}`}>
+                        <Badge className={cn("border-0 text-[11px]", categoryBadgeClass[rec.category])}>
                           {t(`finance.cat_${rec.category}`)}
                         </Badge>
                       </TableCell>
@@ -372,37 +566,62 @@ export default function Finance() {
           </Card>
         </TabsContent>
 
-        {/* Breakdown Tab */}
-        <TabsContent value="breakdown" className="mt-6">
+        {/* Analytics Tab */}
+        <TabsContent value="analytics" className="mt-6">
           <div className="grid gap-6 lg:grid-cols-2">
+            {/* Cashflow Bar Chart */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-[15px]">{t("finance.cashflowChart")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={cashflowData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
+                      <Tooltip content={<CashflowTooltip />} />
+                      <Bar dataKey="income" fill="hsl(142, 71%, 45%)" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                      <Bar dataKey="expense" fill="hsl(0, 84%, 60%)" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex items-center justify-center gap-6 mt-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-[12px] text-muted-foreground">{t("finance.income")}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                    <span className="text-[12px] text-muted-foreground">{t("finance.expenses")}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Donut Chart */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-[15px]">{t("finance.expenseBreakdown")}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={donutData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={110}
-                        paddingAngle={3}
-                        dataKey="value"
-                        strokeWidth={0}
-                      >
+                      <Pie data={donutData} cx="50%" cy="50%" innerRadius={65} outerRadius={100} paddingAngle={3} dataKey="value" strokeWidth={0}>
                         {donutData.map((entry) => (
                           <Cell key={entry.name} fill={categoryColors[entry.name as ExpenseCategory]} />
                         ))}
                       </Pie>
-                      <Tooltip content={<CustomTooltip />} />
+                      <Tooltip content={<DonutTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Category breakdown */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-[15px]">{t("finance.categoryBreakdown")}</CardTitle>
@@ -469,6 +688,47 @@ export default function Finance() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpModalOpen(false)}>{t("patients.cancel")}</Button>
             <Button onClick={saveExp}>{t("patients.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Income Dialog */}
+      <Dialog open={incModalOpen} onOpenChange={(open) => { setIncModalOpen(open); if (!open) setEditingInc(null); }}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingInc ? t("finance.editIncome") : t("finance.addIncome")}</DialogTitle>
+            <DialogDescription>{t("finance.incomeFormDesc")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label className="text-[13px]">{t("finance.description")}</Label>
+              <Input value={incForm.description} onChange={(e) => setIncForm({ ...incForm, description: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label className="text-[13px]">{t("finance.patientNameOptional")}</Label>
+              <Input value={incForm.patientName} onChange={(e) => setIncForm({ ...incForm, patientName: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-[13px]">{t("inventory.category")}</Label>
+                <Select value={incForm.category} onValueChange={(v) => setIncForm({ ...incForm, category: v as IncomeCategory })}>
+                  <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {incomeCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{t(`finance.inc_${cat}`)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[13px]">{t("finance.amount")}</Label>
+                <Input type="number" min={0} value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: Number(e.target.value) })} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIncModalOpen(false)}>{t("patients.cancel")}</Button>
+            <Button onClick={saveInc}>{t("patients.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

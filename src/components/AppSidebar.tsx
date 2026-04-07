@@ -70,7 +70,7 @@ export function AppSidebar() {
                       className="rounded-xl transition-all duration-200 hover:bg-sidebar-accent/60"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
-                      <item.icon className="h-[18px] w-[18px] stroke-[1.5]" />
+                      <item.icon className="h-[18px] w-[18px] stroke-[1.4]" />
                       {!collapsed && <span className="text-[13px]">{t(`nav.${item.key}`)}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -93,7 +93,7 @@ export function AppSidebar() {
               onClick={handleLogout}
               className="rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
-              <LogOut className="h-[18px] w-[18px] stroke-[1.5]" />
+              <LogOut className="h-[18px] w-[18px] stroke-[1.4]" />
               {!collapsed && <span className="text-[13px]">{t("common.logout")}</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>

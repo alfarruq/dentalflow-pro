@@ -266,7 +266,7 @@ export default function Finance() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-10 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t("finance.title")}</h1>

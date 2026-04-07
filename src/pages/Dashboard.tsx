@@ -26,10 +26,10 @@ const formatUZS = (value: number) => {
 };
 
 const statusColors: Record<string, string> = {
-  pending: "bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400",
-  confirmed: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
-  completed: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
-  cancelled: "bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400",
+  pending: "bg-muted text-muted-foreground",
+  confirmed: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  completed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  cancelled: "bg-destructive/8 text-destructive",
 };
 
 const StatCard = ({
@@ -44,14 +44,14 @@ const StatCard = ({
   trend?: string;
 }) => (
   <Card>
-    <CardContent className="flex items-center gap-4 p-6">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8">
-        <Icon className="h-5 w-5 text-primary stroke-[1.5]" />
+    <CardContent className="flex items-center gap-5 p-7">
+      <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-primary/8">
+        <Icon className="h-5 w-5 text-primary stroke-[1.4]" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] text-muted-foreground">{title}</p>
-        <div className="flex items-baseline gap-2 mt-0.5">
-          <span className="text-xl font-semibold tracking-tight">{value}</span>
+        <p className="text-xs font-normal text-muted-foreground tracking-wide">{title}</p>
+        <div className="flex items-baseline gap-2.5 mt-1">
+          <span className="text-2xl font-bold tracking-tight">{value}</span>
           {trend && <span className="text-xs font-medium text-emerald-500">{trend}</span>}
         </div>
       </div>
@@ -79,20 +79,20 @@ export default function Dashboard() {
     <div className="space-y-8 max-w-6xl">
       <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-3">
         <StatCard title={t("dashboard.totalPatients")} value="1 284" icon={Users} trend="+12%" />
         <StatCard title={t("dashboard.todayAppointments")} value={String(todayAppointments.length)} icon={CalendarDays} />
         <StatCard title={t("dashboard.monthlyRevenue")} value="59 000 000 so'm" icon={TrendingUp} trend="+25.5%" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
+      <div className="grid gap-8 lg:grid-cols-5">
+        <Card className="lg:col-span-3 flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-[15px] font-semibold">{t("dashboard.monthlyRevenue")}</CardTitle>
-            <p className="text-[13px] text-muted-foreground">{t("dashboard.last6Months")}</p>
+            <p className="text-xs text-muted-foreground">{t("dashboard.last6Months")}</p>
           </CardHeader>
-          <CardContent>
-            <div className="h-[320px]">
+          <CardContent className="flex-1 flex flex-col justify-end">
+            <div className="h-[340px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
@@ -128,11 +128,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div>
               <CardTitle className="text-[15px] font-semibold">{t("dashboard.todaySchedule")}</CardTitle>
-              <p className="text-[13px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {todayAppointments.length} {t("appointments.appointments")}
               </p>
             </div>
@@ -141,28 +141,30 @@ export default function Dashboard() {
               {t("appointments.addAppointment")}
             </Button>
           </CardHeader>
-          <CardContent className="px-5">
+          <CardContent className="flex-1 px-5">
             {todayAppointments.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-12">{t("appointments.noAppointments")}</p>
             ) : (
-              <div className="space-y-1 max-h-[320px] overflow-y-auto pr-1">
+              <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
                 {todayAppointments.slice(0, 10).map((apt) => (
                   <div
                     key={apt.id}
-                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors duration-200"
+                    className="flex items-center gap-3 p-3.5 rounded-xl hover:bg-accent/50 transition-colors duration-200"
                   >
                     <div className="flex items-center gap-1.5 w-14 shrink-0">
-                      <Clock className="h-3 w-3 text-muted-foreground stroke-[1.5]" />
+                      <Clock className="h-3 w-3 text-muted-foreground stroke-[1.4]" />
                       <span className="font-mono text-xs font-medium">{apt.time}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <User className="h-3 w-3 text-muted-foreground stroke-[1.5] shrink-0" />
+                        <User className="h-3 w-3 text-muted-foreground stroke-[1.4] shrink-0" />
                         <span className="text-[13px] font-medium truncate">{apt.patientName}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {t(`patients.${apt.treatmentType}`)}
-                        {apt.toothNumber && ` - ${t("patientProfile.tooth")} #${apt.toothNumber}`}
+                        {apt.toothNumber && (
+                          <span className="font-medium text-foreground/70"> · Tish #{apt.toothNumber}</span>
+                        )}
                       </p>
                     </div>
                     <Badge className={cn("text-[10px] border-0 shrink-0 px-2 py-0.5", statusColors[apt.status])}>
@@ -179,10 +181,10 @@ export default function Dashboard() {
       {/* Upcoming payments notification */}
       {upcomingPayments.length > 0 && (
         <Card className="border-amber-200/60 dark:border-amber-500/20 bg-amber-50/30 dark:bg-amber-500/5">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-amber-500 stroke-[1.5]" />
+                <Bell className="h-4 w-4 text-amber-500 stroke-[1.4]" />
                 <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">
                   {t("finance.dashboardUpcoming")}
                 </span>
@@ -194,9 +196,9 @@ export default function Dashboard() {
                 {t("finance.title")} →
               </Button>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {upcomingPayments.map((r) => (
-                <div key={r.id} className="flex items-center justify-between bg-card/80 rounded-xl px-4 py-3">
+                <div key={r.id} className="flex items-center justify-between bg-card/80 rounded-xl px-5 py-3.5">
                   <div>
                     <p className="text-[13px] font-medium">{r.description}</p>
                     <p className="text-[12px] text-muted-foreground">{t("finance.dueDay", { day: r.dayOfMonth })}</p>

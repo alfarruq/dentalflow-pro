@@ -266,7 +266,7 @@ export default function Finance() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-10 max-w-6xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{t("finance.title")}</h1>
@@ -330,39 +330,39 @@ export default function Finance() {
       </div>
 
       {/* 3 Summary Cards */}
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-3">
         <Card className="border-emerald-200/40 dark:border-emerald-500/20">
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
-              <TrendingUp className="h-5 w-5 text-emerald-500 stroke-[1.5]" />
+          <CardContent className="flex items-center gap-5 p-7">
+            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+              <ArrowUpRight className="h-5 w-5 text-emerald-500 stroke-[1.4]" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">{t("finance.totalIncome")}</p>
-              <span className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">{formatUZS(totalIncome)}</span>
+              <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.totalIncome")}</p>
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight mt-1 block">{formatUZS(totalIncome)}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="border-red-200/40 dark:border-red-500/20">
-          <CardContent className="flex items-center gap-4 p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
-              <TrendingDown className="h-5 w-5 text-red-500 stroke-[1.5]" />
+          <CardContent className="flex items-center gap-5 p-7">
+            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+              <ArrowDownRight className="h-5 w-5 text-red-500 stroke-[1.4]" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">{t("finance.totalExpenses")}</p>
-              <span className="text-xl font-semibold text-red-500">{formatUZS(totalExpenses)}</span>
+              <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.totalExpenses")}</p>
+              <span className="text-2xl font-bold text-red-500 tracking-tight mt-1 block">{formatUZS(totalExpenses)}</span>
             </div>
           </CardContent>
         </Card>
-        <Card className="relative overflow-hidden">
+        <Card className="relative overflow-hidden border-primary/20">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 pointer-events-none" />
-          <CardContent className="flex items-center gap-4 p-6 relative">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/8">
-              <Sparkles className="h-5 w-5 text-primary stroke-[1.5]" />
+          <CardContent className="flex items-center gap-5 p-7 relative">
+            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-primary/8">
+              <Sparkles className="h-5 w-5 text-primary stroke-[1.4]" />
             </div>
             <div>
-              <p className="text-[13px] text-muted-foreground">{t("finance.netProfit")}</p>
-              <span className={cn("text-xl font-bold", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}
-                style={{ textShadow: netProfit >= 0 ? "0 0 30px rgba(16,185,129,0.15)" : "0 0 30px rgba(239,68,68,0.15)" }}>
+              <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.netProfit")}</p>
+              <span className={cn("text-2xl font-bold tracking-tight mt-1 block", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}
+                style={{ textShadow: netProfit >= 0 ? "0 0 40px rgba(16,185,129,0.2)" : "0 0 40px rgba(239,68,68,0.2)" }}>
                 {formatUZS(netProfit)}
               </span>
             </div>

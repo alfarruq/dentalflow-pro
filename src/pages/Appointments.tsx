@@ -382,7 +382,6 @@ export default function Appointments() {
       {/* Add Appointment Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("appointments.addAppointment")}</DialogTitle>
             <DialogDescription>{t("appointments.addAppointmentDesc")}</DialogDescription>

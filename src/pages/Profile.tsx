@@ -178,7 +178,7 @@ export default function Profile() {
   const totalActiveServices = services.filter(s => s.active).length;
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto">
       {/* Doctor Info */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -292,7 +292,7 @@ export default function Profile() {
               filteredServices.map(service => (
                 <div
                   key={service.id}
-                  className={`flex items-center gap-4 p-4 rounded-xl border border-border/50 transition-all ${!service.active ? "opacity-50" : ""}`}
+                  className={`flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-border/50 transition-all ${!service.active ? "opacity-50" : ""}`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -307,17 +307,19 @@ export default function Profile() {
                       </span>
                     </div>
                   </div>
-                  <span className="font-semibold text-primary whitespace-nowrap">
-                    {formatPrice(service.price)} {t("common.currency")}
-                  </span>
-                  <Switch checked={service.active} onCheckedChange={() => toggleServiceActive(service.id)} />
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditService(service)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteService(service)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                  <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <span className="font-semibold text-primary whitespace-nowrap">
+                      {formatPrice(service.price)} {t("common.currency")}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Switch checked={service.active} onCheckedChange={() => toggleServiceActive(service.id)} />
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditService(service)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteService(service)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))

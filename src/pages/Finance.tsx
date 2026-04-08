@@ -266,31 +266,33 @@ export default function Finance() {
   };
 
   return (
-    <div className="space-y-10 max-w-6xl">
+    <div className="space-y-6 sm:space-y-8 lg:space-y-10 max-w-6xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("finance.title")}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("finance.title")}</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={openAddExp}>
+          <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={openAddExp}>
             <Plus className="h-4 w-4" />
-            {t("finance.addExpense")}
+            <span className="hidden sm:inline">{t("finance.addExpense")}</span>
+            <span className="sm:hidden">Xarajat</span>
           </Button>
-          <Button className="gap-2" onClick={openAddInc}>
+          <Button className="gap-2 flex-1 sm:flex-none" onClick={openAddInc}>
             <Plus className="h-4 w-4" />
-            {t("finance.addIncome")}
+            <span className="hidden sm:inline">{t("finance.addIncome")}</span>
+            <span className="sm:hidden">Daromad</span>
           </Button>
         </div>
       </div>
 
       {/* Time Filter Segmented Control */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="inline-flex items-center bg-secondary/60 rounded-2xl p-1 gap-0.5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap">
+        <div className="inline-flex items-center bg-secondary/60 rounded-2xl p-1 gap-0.5 overflow-x-auto w-full sm:w-auto">
           {timeFilters.map((tf) => (
             <button
               key={tf.key}
               onClick={() => setTimeFilter(tf.key)}
               className={cn(
-                "px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200",
+                "px-3 sm:px-4 py-2 rounded-xl text-[12px] sm:text-[13px] font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0",
                 timeFilter === tf.key
                   ? "bg-card shadow-sm text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -301,10 +303,10 @@ export default function Finance() {
           ))}
         </div>
         {timeFilter === "custom" && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("gap-2 text-[13px]", !customFrom && "text-muted-foreground")}>
+                <Button variant="outline" className={cn("gap-2 text-[13px] flex-1 sm:flex-none", !customFrom && "text-muted-foreground")}>
                   <CalendarIcon className="h-4 w-4" />
                   {customFrom ? format(customFrom, "dd.MM.yyyy") : t("finance.fromDate")}
                 </Button>
@@ -316,7 +318,7 @@ export default function Finance() {
             <span className="text-muted-foreground text-[13px]">—</span>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("gap-2 text-[13px]", !customTo && "text-muted-foreground")}>
+                <Button variant="outline" className={cn("gap-2 text-[13px] flex-1 sm:flex-none", !customTo && "text-muted-foreground")}>
                   <CalendarIcon className="h-4 w-4" />
                   {customTo ? format(customTo, "dd.MM.yyyy") : t("finance.toDate")}
                 </Button>
@@ -330,38 +332,38 @@ export default function Finance() {
       </div>
 
       {/* 3 Summary Cards */}
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
         <Card className="border-emerald-200/40 dark:border-emerald-500/20">
           <CardContent className="flex items-center gap-5 p-7">
-            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
+            <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-500/10">
               <ArrowUpRight className="h-5 w-5 text-emerald-500 stroke-[1.4]" />
             </div>
             <div>
               <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.totalIncome")}</p>
-              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight mt-1 block">{formatUZS(totalIncome)}</span>
+              <span className="text-lg sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight mt-1 block">{formatUZS(totalIncome)}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="border-red-200/40 dark:border-red-500/20">
           <CardContent className="flex items-center gap-5 p-7">
-            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
+            <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-red-50 dark:bg-red-500/10">
               <ArrowDownRight className="h-5 w-5 text-red-500 stroke-[1.4]" />
             </div>
             <div>
               <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.totalExpenses")}</p>
-              <span className="text-2xl font-bold text-red-500 tracking-tight mt-1 block">{formatUZS(totalExpenses)}</span>
+              <span className="text-lg sm:text-2xl font-bold text-red-500 tracking-tight mt-1 block">{formatUZS(totalExpenses)}</span>
             </div>
           </CardContent>
         </Card>
         <Card className="relative overflow-hidden border-primary/20">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 pointer-events-none" />
           <CardContent className="flex items-center gap-5 p-7 relative">
-            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-primary/8">
+            <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-primary/8">
               <Sparkles className="h-5 w-5 text-primary stroke-[1.4]" />
             </div>
             <div>
               <p className="text-xs font-normal text-muted-foreground tracking-wide">{t("finance.netProfit")}</p>
-              <span className={cn("text-2xl font-bold tracking-tight mt-1 block", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}
+              <span className={cn("text-lg sm:text-2xl font-bold tracking-tight mt-1 block", netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}
                 style={{ textShadow: netProfit >= 0 ? "0 0 40px rgba(16,185,129,0.2)" : "0 0 40px rgba(239,68,68,0.2)" }}>
                 {formatUZS(netProfit)}
               </span>

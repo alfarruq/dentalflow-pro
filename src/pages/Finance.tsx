@@ -526,6 +526,7 @@ export default function Finance() {
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
+              <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/40 hover:bg-transparent">
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("finance.description")}</TableHead>

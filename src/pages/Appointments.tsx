@@ -309,6 +309,7 @@ export default function Appointments() {
               {t("appointments.today")}
             </Button>
           </div>
+          <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-border/60">
               {weekDays.map((day, i) => {

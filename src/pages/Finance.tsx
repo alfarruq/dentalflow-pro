@@ -507,6 +507,7 @@ export default function Finance() {
               </Table>
               </div>
             </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Recurring Tab */}
@@ -566,6 +567,7 @@ export default function Finance() {
               </Table>
               </div>
             </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Analytics Tab */}

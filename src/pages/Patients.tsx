@@ -68,14 +68,14 @@ export default function Patients() {
   }
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("patients.title")}</h1>
+    <div className="space-y-6 sm:space-y-8 max-w-6xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("patients.title")}</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" />{t("patients.addPatient")}</Button>
+            <Button className="gap-2 w-full sm:w-auto"><Plus className="h-4 w-4" />{t("patients.addPatient")}</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogContent className="sm:max-w-md rounded-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("patients.addPatientTitle")}</DialogTitle>
               <DialogDescription>{t("patients.addPatientDesc")}</DialogDescription>
@@ -112,81 +112,118 @@ export default function Patients() {
                 <div className="grid gap-2"><Label className="text-[13px]">{t("patients.paid")}</Label><Input type="number" value={newAmountPaid} onChange={(e) => setNewAmountPaid(e.target.value)} placeholder="200000" /></div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("patients.cancel")}</Button>
-              <Button onClick={handleAddPatient}>{t("patients.save")}</Button>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto">{t("patients.cancel")}</Button>
+              <Button onClick={handleAddPatient} className="w-full sm:w-auto">{t("patients.save")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground stroke-[1.5]" />
           <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t("patients.searchPlaceholder")} className="pl-10" />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("patients.allStatuses")}</SelectItem>
-            <SelectItem value="pending">{t("patients.pending")}</SelectItem>
-            <SelectItem value="in_progress">{t("patients.in_progress")}</SelectItem>
-            <SelectItem value="completed">{t("patients.completed")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={treatmentFilter} onValueChange={(v) => { setTreatmentFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t("patients.allTreatments")}</SelectItem>
-            <SelectItem value="implant">{t("patients.implant")}</SelectItem>
-            <SelectItem value="filling">{t("patients.filling")}</SelectItem>
-            <SelectItem value="cleaning">{t("patients.cleaning")}</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("patients.allStatuses")}</SelectItem>
+              <SelectItem value="pending">{t("patients.pending")}</SelectItem>
+              <SelectItem value="in_progress">{t("patients.in_progress")}</SelectItem>
+              <SelectItem value="completed">{t("patients.completed")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={treatmentFilter} onValueChange={(v) => { setTreatmentFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t("patients.allTreatments")}</SelectItem>
+              <SelectItem value="implant">{t("patients.implant")}</SelectItem>
+              <SelectItem value="filling">{t("patients.filling")}</SelectItem>
+              <SelectItem value="cleaning">{t("patients.cleaning")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b border-border/40 hover:bg-transparent">
-              <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.fullName")}</TableHead>
-              <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.phone")}</TableHead>
-              <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.appointmentDate")}</TableHead>
-              <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.treatmentType")}</TableHead>
-              <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
-              <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.totalCost")}</TableHead>
-              <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.paid")}</TableHead>
-              <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.remaining")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{t("patients.noResults")}</TableCell></TableRow>
-            ) : (
-              paginated.map((patient) => {
-                const remaining = getRemainingBalance(patient);
-                const hasDebt = remaining > 0;
-                return (
-                  <TableRow key={patient.id} className="cursor-pointer transition-colors border-b border-border/30 hover:bg-accent/30" onClick={() => navigate(`/patients/${patient.id}`)}>
-                    <TableCell className="font-medium text-[13px]">{patient.fullName}</TableCell>
-                    <TableCell className="text-muted-foreground text-[13px]">{patient.phone}</TableCell>
-                    <TableCell className="text-muted-foreground text-[13px]">{format(new Date(patient.appointmentDate), "dd.MM.yyyy HH:mm")}</TableCell>
-                    <TableCell><Badge variant="outline" className="text-[12px] rounded-lg">{t(`patients.${patient.treatmentType}`)}</Badge></TableCell>
-                    <TableCell><Badge className={`border-0 text-[11px] ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge></TableCell>
-                    <TableCell className="text-right tabular-nums text-[13px]">{formatCurrency(patient.totalCost)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-[13px]">{formatCurrency(patient.amountPaid)}</TableCell>
-                    <TableCell className="text-right tabular-nums text-[13px]">
-                      <span className="flex items-center justify-end gap-2">
-                        {formatCurrency(remaining)}
-                        {hasDebt && <Badge className="bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 border-0 text-[10px]">{t("patients.debt")}</Badge>}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+      {/* Mobile card view */}
+      <div className="block sm:hidden space-y-3">
+        {paginated.length === 0 ? (
+          <p className="text-center text-muted-foreground py-12">{t("patients.noResults")}</p>
+        ) : (
+          paginated.map((patient) => {
+            const remaining = getRemainingBalance(patient);
+            return (
+              <Card key={patient.id} className="p-4 cursor-pointer active:scale-[0.98] transition-transform" onClick={() => navigate(`/patients/${patient.id}`)}>
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-medium text-[14px]">{patient.fullName}</p>
+                    <p className="text-xs text-muted-foreground">{patient.phone}</p>
+                  </div>
+                  <Badge className={`border-0 text-[11px] ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t(`patients.${patient.treatmentType}`)}</span>
+                  <span>{format(new Date(patient.appointmentDate), "dd.MM.yyyy")}</span>
+                </div>
+                <div className="flex items-center justify-between mt-2 text-sm">
+                  <span className="text-muted-foreground">{t("patients.remaining")}:</span>
+                  <span className={remaining > 0 ? "font-semibold text-destructive" : "font-semibold text-emerald-600"}>
+                    {formatCurrency(remaining)} so'm
+                  </span>
+                </div>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <Card className="hidden sm:block">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border/40 hover:bg-transparent">
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.fullName")}</TableHead>
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("patients.phone")}</TableHead>
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("patients.appointmentDate")}</TableHead>
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.treatmentType")}</TableHead>
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
+                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("patients.totalCost")}</TableHead>
+                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("patients.paid")}</TableHead>
+                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.remaining")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginated.length === 0 ? (
+                <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{t("patients.noResults")}</TableCell></TableRow>
+              ) : (
+                paginated.map((patient) => {
+                  const remaining = getRemainingBalance(patient);
+                  const hasDebt = remaining > 0;
+                  return (
+                    <TableRow key={patient.id} className="cursor-pointer transition-colors border-b border-border/30 hover:bg-accent/30" onClick={() => navigate(`/patients/${patient.id}`)}>
+                      <TableCell className="font-medium text-[13px]">{patient.fullName}</TableCell>
+                      <TableCell className="text-muted-foreground text-[13px] hidden md:table-cell">{patient.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-[13px] hidden lg:table-cell">{format(new Date(patient.appointmentDate), "dd.MM.yyyy HH:mm")}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[12px] rounded-lg">{t(`patients.${patient.treatmentType}`)}</Badge></TableCell>
+                      <TableCell><Badge className={`border-0 text-[11px] ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge></TableCell>
+                      <TableCell className="text-right tabular-nums text-[13px] hidden md:table-cell">{formatCurrency(patient.totalCost)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[13px] hidden lg:table-cell">{formatCurrency(patient.amountPaid)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-[13px]">
+                        <span className="flex items-center justify-end gap-2">
+                          {formatCurrency(remaining)}
+                          {hasDebt && <Badge className="bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 border-0 text-[10px]">{t("patients.debt")}</Badge>}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <div className="flex items-center justify-between text-[13px] text-muted-foreground">

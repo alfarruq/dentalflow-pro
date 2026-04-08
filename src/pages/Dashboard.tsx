@@ -44,14 +44,14 @@ const StatCard = ({
   trend?: string;
 }) => (
   <Card>
-    <CardContent className="flex items-center gap-5 p-7">
-      <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-primary/8">
+    <CardContent className="flex items-center gap-4 p-5 sm:p-7">
+      <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-primary/8">
         <Icon className="h-5 w-5 text-primary stroke-[1.4]" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-normal text-muted-foreground tracking-wide">{title}</p>
-        <div className="flex items-baseline gap-2.5 mt-1">
-          <span className="text-2xl font-bold tracking-tight">{value}</span>
+        <p className="text-[11px] sm:text-xs font-normal text-muted-foreground tracking-wide">{title}</p>
+        <div className="flex items-baseline gap-2 mt-1">
+          <span className="text-lg sm:text-2xl font-bold tracking-tight truncate">{value}</span>
           {trend && <span className="text-xs font-medium text-emerald-500">{trend}</span>}
         </div>
       </div>
@@ -76,23 +76,23 @@ export default function Dashboard() {
   }, [today]);
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
+    <div className="space-y-6 sm:space-y-8 max-w-6xl">
+      <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
 
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
         <StatCard title={t("dashboard.totalPatients")} value="1 284" icon={Users} trend="+12%" />
         <StatCard title={t("dashboard.todayAppointments")} value={String(todayAppointments.length)} icon={CalendarDays} />
         <StatCard title={t("dashboard.monthlyRevenue")} value="59 000 000 so'm" icon={TrendingUp} trend="+25.5%" />
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-5">
+      <div className="grid gap-6 lg:gap-8 grid-cols-1 lg:grid-cols-5">
         <Card className="lg:col-span-3 flex flex-col">
           <CardHeader className="pb-2">
             <CardTitle className="text-[15px] font-semibold">{t("dashboard.monthlyRevenue")}</CardTitle>
             <p className="text-xs text-muted-foreground">{t("dashboard.last6Months")}</p>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-end">
-            <div className="h-[340px]">
+            <div className="h-[240px] sm:h-[340px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
@@ -103,7 +103,7 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
                   <XAxis dataKey="month" className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} tickFormatter={formatUZS} axisLine={false} tickLine={false} />
+                  <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} tickFormatter={formatUZS} axisLine={false} tickLine={false} width={50} />
                   <Tooltip
                     formatter={(value: number) => [`${value.toLocaleString()} so'm`, t("dashboard.monthlyRevenue")]}
                     contentStyle={{
@@ -136,38 +136,41 @@ export default function Dashboard() {
                 {todayAppointments.length} {t("appointments.appointments")}
               </p>
             </div>
-            <Button size="sm" className="gap-1.5 rounded-xl" onClick={() => navigate("/appointments")}>
+            <Button size="sm" className="gap-1.5 rounded-xl hidden sm:flex" onClick={() => navigate("/appointments")}>
               <Plus className="h-3.5 w-3.5" />
               {t("appointments.addAppointment")}
             </Button>
+            <Button size="icon" className="rounded-xl sm:hidden h-8 w-8" onClick={() => navigate("/appointments")}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </CardHeader>
-          <CardContent className="flex-1 px-5">
+          <CardContent className="flex-1 px-4 sm:px-5">
             {todayAppointments.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-12">{t("appointments.noAppointments")}</p>
             ) : (
-              <div className="space-y-1 max-h-[340px] overflow-y-auto pr-1">
+              <div className="space-y-1 max-h-[300px] sm:max-h-[340px] overflow-y-auto pr-1">
                 {todayAppointments.slice(0, 10).map((apt) => (
                   <div
                     key={apt.id}
-                    className="flex items-center gap-3 p-3.5 rounded-xl hover:bg-accent/50 transition-colors duration-200"
+                    className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl hover:bg-accent/50 transition-colors duration-200"
                   >
-                    <div className="flex items-center gap-1.5 w-14 shrink-0">
-                      <Clock className="h-3 w-3 text-muted-foreground stroke-[1.4]" />
+                    <div className="flex items-center gap-1 sm:gap-1.5 w-12 sm:w-14 shrink-0">
+                      <Clock className="h-3 w-3 text-muted-foreground stroke-[1.4] hidden sm:block" />
                       <span className="font-mono text-xs font-medium">{apt.time}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <User className="h-3 w-3 text-muted-foreground stroke-[1.4] shrink-0" />
+                        <User className="h-3 w-3 text-muted-foreground stroke-[1.4] shrink-0 hidden sm:block" />
                         <span className="text-[13px] font-medium truncate">{apt.patientName}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
                         {t(`patients.${apt.treatmentType}`)}
                         {apt.toothNumber && (
                           <span className="font-medium text-foreground/70"> · Tish #{apt.toothNumber}</span>
                         )}
                       </p>
                     </div>
-                    <Badge className={cn("text-[10px] border-0 shrink-0 px-2 py-0.5", statusColors[apt.status])}>
+                    <Badge className={cn("text-[10px] border-0 shrink-0 px-2 py-0.5 hidden sm:inline-flex", statusColors[apt.status])}>
                       {t(`appointments.status_${apt.status}`)}
                     </Badge>
                   </div>
@@ -181,8 +184,8 @@ export default function Dashboard() {
       {/* Upcoming payments notification */}
       {upcomingPayments.length > 0 && (
         <Card className="border-amber-200/60 dark:border-amber-500/20 bg-amber-50/30 dark:bg-amber-500/5">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <div className="flex items-center gap-2">
                 <Bell className="h-4 w-4 text-amber-500 stroke-[1.4]" />
                 <span className="text-[13px] font-semibold text-amber-600 dark:text-amber-400">
@@ -196,9 +199,9 @@ export default function Dashboard() {
                 {t("finance.title")} →
               </Button>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
               {upcomingPayments.map((r) => (
-                <div key={r.id} className="flex items-center justify-between bg-card/80 rounded-xl px-5 py-3.5">
+                <div key={r.id} className="flex items-center justify-between bg-card/80 rounded-xl px-4 sm:px-5 py-3 sm:py-3.5">
                   <div>
                     <p className="text-[13px] font-medium">{r.description}</p>
                     <p className="text-[12px] text-muted-foreground">{t("finance.dueDay", { day: r.dayOfMonth })}</p>

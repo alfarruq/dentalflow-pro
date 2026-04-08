@@ -180,36 +180,36 @@ export default function Appointments() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("appointments.title")}</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("appointments.title")}</h1>
         <div className="flex items-center gap-2">
           {/* View mode switcher */}
           <div className="flex items-center bg-muted rounded-full p-1 gap-0.5">
             <button
               onClick={() => setViewMode("list")}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
+                "flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-sm font-medium transition-all",
                 viewMode === "list" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <List className="h-4 w-4" />
-              {t("appointments.listView")}
+              <span className="hidden sm:inline">{t("appointments.listView")}</span>
             </button>
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-all",
+                "flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-sm font-medium transition-all",
                 viewMode === "grid" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <CalendarRange className="h-4 w-4" />
-              {t("appointments.gridView")}
+              <span className="hidden sm:inline">{t("appointments.gridView")}</span>
             </button>
           </div>
           <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" />
-            {t("appointments.addAppointment")}
+            <span className="hidden sm:inline">{t("appointments.addAppointment")}</span>
           </Button>
         </div>
       </div>
@@ -279,7 +279,17 @@ export default function Appointments() {
         </>
       ) : (
         <>
-          {/* Grid (Calendar) View */}
+          {/* Grid (Calendar) View - hidden on mobile, show message */}
+          <div className="block sm:hidden">
+            <Card className="shadow-sm">
+              <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                <CalendarRange className="h-10 w-10" />
+                <p className="text-sm text-center">{t("appointments.gridViewDesktop") || "Kalendar ko'rinishi faqat katta ekranlarda ishlaydi"}</p>
+                <Button variant="outline" size="sm" onClick={() => setViewMode("list")}>{t("appointments.listView")}</Button>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="hidden sm:block space-y-4">
           <div className="flex items-center gap-3">
             <Button variant="outline" size="icon" className="rounded-full h-9 w-9" onClick={() => setWeekStart((s) => addDays(s, -7))}>
               <ChevronLeft className="h-4 w-4" />
@@ -299,7 +309,6 @@ export default function Appointments() {
               {t("appointments.today")}
             </Button>
           </div>
-
           <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
             {/* Day headers */}
             <div className="grid grid-cols-7 border-b border-border/60">
@@ -366,6 +375,7 @@ export default function Appointments() {
                 );
               })}
             </div>
+          </div>
           </div>
         </>
       )}

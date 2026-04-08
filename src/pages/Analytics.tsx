@@ -196,21 +196,22 @@ export default function Analytics() {
   const maxService = Math.max(...d.services.map((s) => s.count));
 
   return (
-    <div className="space-y-8 max-w-6xl">
+    <div className="space-y-6 sm:space-y-8 max-w-6xl">
       {/* Header + time filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
+      <div className="flex flex-col gap-3 sm:flex-row items-start sm:items-center justify-between">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
           {t("analytics.title")}
         </h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <Tabs
             value={period}
             onValueChange={(v) => setPeriod(v as Period)}
+            className="flex-1 sm:flex-none"
           >
-            <TabsList className="h-9 rounded-xl">
-              <TabsTrigger value="weekly" className="rounded-lg text-[13px]">{t("analytics.weekly")}</TabsTrigger>
-              <TabsTrigger value="monthly" className="rounded-lg text-[13px]">{t("analytics.monthly")}</TabsTrigger>
-              <TabsTrigger value="yearly" className="rounded-lg text-[13px]">{t("analytics.yearly")}</TabsTrigger>
+            <TabsList className="h-9 rounded-xl w-full sm:w-auto">
+              <TabsTrigger value="weekly" className="rounded-lg text-[12px] sm:text-[13px] flex-1 sm:flex-none">{t("analytics.weekly")}</TabsTrigger>
+              <TabsTrigger value="monthly" className="rounded-lg text-[12px] sm:text-[13px] flex-1 sm:flex-none">{t("analytics.monthly")}</TabsTrigger>
+              <TabsTrigger value="yearly" className="rounded-lg text-[12px] sm:text-[13px] flex-1 sm:flex-none">{t("analytics.yearly")}</TabsTrigger>
             </TabsList>
           </Tabs>
 
@@ -220,12 +221,14 @@ export default function Analytics() {
               <Button
                 variant={period === "custom" ? "default" : "outline"}
                 size="sm"
-                className="gap-2 rounded-xl"
+                className="gap-2 rounded-xl shrink-0"
               >
                 <CalendarIcon className="h-3.5 w-3.5" />
-                {period === "custom" && dateRange.from
-                  ? `${format(dateRange.from, "dd.MM")} — ${dateRange.to ? format(dateRange.to, "dd.MM") : "..."}`
-                  : t("analytics.customRange")}
+                <span className="hidden sm:inline">
+                  {period === "custom" && dateRange.from
+                    ? `${format(dateRange.from, "dd.MM")} — ${dateRange.to ? format(dateRange.to, "dd.MM") : "..."}`
+                    : t("analytics.customRange")}
+                </span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 rounded-2xl" align="end">
@@ -238,7 +241,7 @@ export default function Analytics() {
                     setPeriod("custom");
                   }
                 }}
-                numberOfMonths={2}
+                numberOfMonths={1}
                 className={cn("p-4 pointer-events-auto")}
               />
             </PopoverContent>
@@ -247,7 +250,7 @@ export default function Analytics() {
       </div>
 
       {/* Motivation Card */}
-      <Card className="border-primary/10 bg-primary/[0.03]">
+      <Card className="border-primary/10 bg-primary/[0.03] hidden sm:block">
         <CardContent className="flex items-center gap-5 py-6">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-3xl">
             🏆
@@ -269,7 +272,7 @@ export default function Analytics() {
       </Card>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[
           { icon: Users, label: t("analytics.totalPatients"), value: d.patients },
           { icon: Stethoscope, label: t("analytics.totalTreatments"), value: d.treatments },
@@ -277,13 +280,13 @@ export default function Analytics() {
           { icon: BadgeDollarSign, label: t("analytics.totalRevenue"), value: `${fmt(d.revenue)} ${t("common.currency")}` },
         ].map((c, i) => (
           <Card key={i}>
-            <CardContent className="flex items-center gap-3.5 py-5 px-5">
+            <CardContent className="flex items-center gap-2 sm:gap-3.5 py-4 sm:py-5 px-3 sm:px-5">
               <div className="rounded-2xl bg-primary/8 p-3">
                 <c.icon className="h-5 w-5 text-primary stroke-[1.5]" />
               </div>
               <div className="min-w-0">
-                <p className="text-[12px] text-muted-foreground truncate">{c.label}</p>
-                <p className="text-[17px] font-semibold text-foreground truncate mt-0.5">{c.value}</p>
+                <p className="text-[11px] sm:text-[12px] text-muted-foreground truncate">{c.label}</p>
+                <p className="text-[14px] sm:text-[17px] font-semibold text-foreground truncate mt-0.5">{c.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -291,7 +294,7 @@ export default function Analytics() {
       </div>
 
       {/* Row: Service Ranking + Pie */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-[15px]">{t("analytics.serviceRanking")}</CardTitle>
@@ -350,7 +353,7 @@ export default function Analytics() {
       </div>
 
       {/* Row: Revenue area + Materials bar */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-[15px]">{t("analytics.revenueTrend")}</CardTitle>

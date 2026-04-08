@@ -9,14 +9,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 flex items-center justify-between border-b border-border/40 px-8 bg-background/80 backdrop-blur-xl sticky top-0 z-30">
+          <header className="h-14 flex items-center justify-between border-b border-border/40 px-4 sm:px-6 lg:px-8 bg-background/80 backdrop-blur-xl sticky top-0 z-30">
             <SidebarTrigger className="h-9 w-9 rounded-xl" />
             <div className="flex items-center gap-2">
               <LanguageSwitcher />
               <ThemeToggle />
             </div>
           </header>
-          <main className="flex-1 p-10 animate-fade-in">{children}</main>
+          <main className="flex-1 p-4 sm:p-6 lg:p-10 animate-fade-in">{children}</main>
         </div>
       </div>
     </SidebarProvider>

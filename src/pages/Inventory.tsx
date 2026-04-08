@@ -86,29 +86,29 @@ export default function Inventory() {
   };
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("inventory.title")}</h1>
-        <Button className="gap-2" onClick={openAdd}>
+    <div className="space-y-6 sm:space-y-8 max-w-6xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("inventory.title")}</h1>
+        <Button className="gap-2 w-full sm:w-auto" onClick={openAdd}>
           <Plus className="h-4 w-4" />
           {t("inventory.addItem")}
         </Button>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         {[
           { icon: Package, label: t("inventory.totalItems"), value: stats.total, bg: "bg-primary/8", color: "text-primary" },
           { icon: Package, label: t("inventory.statusLow"), value: stats.low, bg: "bg-amber-50 dark:bg-amber-500/10", color: "text-amber-500" },
           { icon: Package, label: t("inventory.statusDepleted"), value: stats.depleted, bg: "bg-red-50 dark:bg-red-500/10", color: "text-red-500" },
         ].map((s, i) => (
           <Card key={i}>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${s.bg}`}>
+            <CardContent className="flex items-center gap-4 p-5 sm:p-6">
+              <div className={`flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-2xl ${s.bg}`}>
                 <s.icon className={`h-5 w-5 ${s.color} stroke-[1.5]`} />
               </div>
               <div>
                 <p className="text-[13px] text-muted-foreground">{s.label}</p>
-                <span className="text-xl font-semibold">{s.value}</span>
+                <span className="text-lg sm:text-xl font-semibold">{s.value}</span>
               </div>
             </CardContent>
           </Card>
@@ -135,71 +135,119 @@ export default function Inventory() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b border-border/40 hover:bg-transparent">
-                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.productName")}</TableHead>
-                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.category")}</TableHead>
-                <TableHead className="text-center text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.quantity")}</TableHead>
-                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.unit")}</TableHead>
-                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.unitPrice")}</TableHead>
-                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
-                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">{t("inventory.noItems")}</TableCell>
+
+        {/* Mobile card view */}
+        <div className="block sm:hidden px-4 pb-4 space-y-2">
+          {filtered.length === 0 ? (
+            <p className="text-center py-12 text-muted-foreground">{t("inventory.noItems")}</p>
+          ) : (
+            filtered.map((item) => {
+              const status = getStatus(item.quantity);
+              const cfg = statusConfig[status];
+              return (
+                <div key={item.id} className="border border-border/50 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium text-[14px]">{item.name}</p>
+                      <Badge variant="secondary" className="font-normal text-[12px] rounded-lg mt-1">{t(`inventory.cat_${item.category}`)}</Badge>
+                    </div>
+                    <Badge className={`border-0 text-[11px] ${cfg.className}`}>{t(cfg.label)}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => adjustQty(item.id, -1)} disabled={item.quantity === 0}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-8 text-center font-semibold tabular-nums">{item.quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => adjustQty(item.id, 1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground">{t(`inventory.unit_${item.unit}`)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[13px] font-medium tabular-nums mr-2">{item.unitPrice.toLocaleString("uz-UZ")} so'm</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEdit(item)}>
+                        <Pencil className="h-3.5 w-3.5 stroke-[1.5]" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
+                        <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop table view */}
+        <CardContent className="p-0 hidden sm:block">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b border-border/40 hover:bg-transparent">
+                  <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.productName")}</TableHead>
+                  <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.category")}</TableHead>
+                  <TableHead className="text-center text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.quantity")}</TableHead>
+                  <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("inventory.unit")}</TableHead>
+                  <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("inventory.unitPrice")}</TableHead>
+                  <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
+                  <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.actions")}</TableHead>
                 </TableRow>
-              ) : (
-                filtered.map((item) => {
-                  const status = getStatus(item.quantity);
-                  const cfg = statusConfig[status];
-                  return (
-                    <TableRow key={item.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
-                      <TableCell className="font-medium text-[13px]">{item.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="font-normal text-[12px] rounded-lg">{t(`inventory.cat_${item.category}`)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => adjustQty(item.id, -1)} disabled={item.quantity === 0}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold tabular-nums text-[13px]">{item.quantity}</span>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => adjustQty(item.id, 1)}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-[13px]">{t(`inventory.unit_${item.unit}`)}</TableCell>
-                      <TableCell className="text-right text-[13px] tabular-nums font-medium">{item.unitPrice.toLocaleString("uz-UZ")} so'm</TableCell>
-                      <TableCell>
-                        <Badge className={`border-0 text-[11px] ${cfg.className}`}>{t(cfg.label)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEdit(item)}>
-                            <Pencil className="h-3.5 w-3.5 stroke-[1.5]" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
-                            <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">{t("inventory.noItems")}</TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((item) => {
+                    const status = getStatus(item.quantity);
+                    const cfg = statusConfig[status];
+                    return (
+                      <TableRow key={item.id} className="border-b border-border/30 hover:bg-accent/30 transition-colors">
+                        <TableCell className="font-medium text-[13px]">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="font-normal text-[12px] rounded-lg">{t(`inventory.cat_${item.category}`)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => adjustQty(item.id, -1)} disabled={item.quantity === 0}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="w-8 text-center font-semibold tabular-nums text-[13px]">{item.quantity}</span>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={() => adjustQty(item.id, 1)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-[13px] hidden md:table-cell">{t(`inventory.unit_${item.unit}`)}</TableCell>
+                        <TableCell className="text-right text-[13px] tabular-nums font-medium">{item.unitPrice.toLocaleString("uz-UZ")} so'm</TableCell>
+                        <TableCell>
+                          <Badge className={`border-0 text-[11px] ${cfg.className}`}>{t(cfg.label)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => openEdit(item)}>
+                              <Pencil className="h-3.5 w-3.5 stroke-[1.5]" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-destructive hover:text-destructive" onClick={() => setDeleteTarget(item)}>
+                              <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={(open) => { setModalOpen(open); if (!open) setEditingItem(null); }}>
-        <DialogContent className="rounded-2xl">
+        <DialogContent className="rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? t("inventory.editItem") : t("inventory.addItem")}</DialogTitle>
             <DialogDescription>{editingItem ? t("inventory.editItemDesc") : t("inventory.addItemDesc")}</DialogDescription>
@@ -209,7 +257,7 @@ export default function Inventory() {
               <Label className="text-[13px]">{t("inventory.productName")}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label className="text-[13px]">{t("inventory.category")}</Label>
                 <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v as InventoryItem["category"] })}>
@@ -225,20 +273,20 @@ export default function Inventory() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label className="text-[13px]">{t("inventory.quantity")}</Label>
                 <Input type="number" min={0} value={form.quantity} onChange={(e) => setForm({ ...form, quantity: Number(e.target.value) })} />
               </div>
-              <div className="grid gap-2 col-span-2">
+              <div className="grid gap-2 sm:col-span-2">
                 <Label className="text-[13px]">{t("inventory.unitPrice")}</Label>
                 <Input type="number" min={0} value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: Number(e.target.value) })} placeholder="so'm" />
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalOpen(false)}>{t("patients.cancel")}</Button>
-            <Button onClick={handleSave}>{t("patients.save")}</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)} className="w-full sm:w-auto">{t("patients.cancel")}</Button>
+            <Button onClick={handleSave} className="w-full sm:w-auto">{t("patients.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

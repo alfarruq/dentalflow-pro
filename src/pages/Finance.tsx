@@ -397,14 +397,14 @@ export default function Finance() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-secondary/60 p-1 rounded-2xl">
-          <TabsTrigger value="transactions" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
+        <TabsList className="bg-secondary/60 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
+          <TabsTrigger value="transactions" className="rounded-xl text-[12px] sm:text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-3 sm:px-6 flex-1 sm:flex-none">
             {t("finance.allTransactions")}
           </TabsTrigger>
-          <TabsTrigger value="recurring" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
+          <TabsTrigger value="recurring" className="rounded-xl text-[12px] sm:text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-3 sm:px-6 flex-1 sm:flex-none">
             {t("finance.scheduledExpenses")}
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-xl text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-6">
+          <TabsTrigger value="analytics" className="rounded-xl text-[12px] sm:text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-3 sm:px-6 flex-1 sm:flex-none">
             {t("finance.breakdown")}
           </TabsTrigger>
         </TabsList>
@@ -412,7 +412,7 @@ export default function Finance() {
         {/* Transactions Tab */}
         <TabsContent value="transactions" className="mt-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3">
               <CardTitle className="text-[15px]">{t("finance.allTransactions")}</CardTitle>
               <div className="inline-flex items-center bg-secondary/60 rounded-xl p-0.5 gap-0.5">
                 {(["all", "income", "expense"] as TransactionType[]).map((type) => (
@@ -430,7 +430,7 @@ export default function Finance() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
                 <TableHeader>
                   <TableRow className="border-b border-border/40 hover:bg-transparent">
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground w-10"></TableHead>
@@ -505,25 +505,25 @@ export default function Finance() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Recurring Tab */}
         <TabsContent value="recurring" className="mt-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-3">
               <div>
                 <CardTitle className="text-[15px]">{t("finance.scheduledExpenses")}</CardTitle>
                 <p className="text-[13px] text-muted-foreground mt-1">{t("finance.scheduledDesc")}</p>
               </div>
-              <Button className="gap-2" onClick={openAddRec}>
+              <Button className="gap-2 w-full sm:w-auto" onClick={openAddRec}>
                 <Plus className="h-4 w-4" />
                 {t("finance.addRecurring")}
               </Button>
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
+              <div className="overflow-x-auto">
                 <TableHeader>
                   <TableRow className="border-b border-border/40 hover:bg-transparent">
                     <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("finance.description")}</TableHead>
@@ -564,20 +564,20 @@ export default function Finance() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="mt-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             {/* Cashflow Bar Chart */}
             <Card className="lg:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-[15px]">{t("finance.cashflowChart")}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-[220px] sm:h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={cashflowData} barGap={4}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />

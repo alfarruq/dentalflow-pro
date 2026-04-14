@@ -5,9 +5,10 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
   Image as ImageIcon, CalendarPlus, Stethoscope,
-  Banknote, Edit, Save, X,
+  Banknote, Edit, Save, X, Bell,
 } from "lucide-react";
 import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
+import { AddReminderDialog } from "@/components/AddReminderDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,7 @@ function fmt(n: number) {
   return n.toLocaleString("uz-UZ");
 }
 
-function PatientHeader({ patient, t }: { patient: Patient; t: (k: string) => string }) {
+function PatientHeader({ patient, t, onAddReminder }: { patient: Patient; t: (k: string) => string; onAddReminder: () => void }) {
   return (
     <Card className="shadow-sm">
       <CardContent className="pt-6">
@@ -58,6 +59,10 @@ function PatientHeader({ patient, t }: { patient: Patient; t: (k: string) => str
             <Button size="sm" variant="outline" className="gap-1.5">
               <CalendarPlus className="h-4 w-4" />
               <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddReminder}>
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("reminders.addFromProfile")}</span>
             </Button>
             <Button size="sm" variant="outline" className="gap-1.5">
               <Stethoscope className="h-4 w-4" />
@@ -158,6 +163,7 @@ export default function PatientProfile() {
   const [teethData, setTeethData] = useState<ToothData[]>(createDefaultTeeth);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   if (!localPatient) {
     return (
@@ -213,7 +219,13 @@ export default function PatientProfile() {
       </div>
 
       {/* Header with quick actions */}
-      <PatientHeader patient={localPatient} t={t} />
+      <PatientHeader patient={localPatient} t={t} onAddReminder={() => setReminderOpen(true)} />
+
+      <AddReminderDialog
+        open={reminderOpen}
+        onOpenChange={setReminderOpen}
+        lockedPatientId={localPatient.id}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">

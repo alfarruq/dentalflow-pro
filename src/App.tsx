@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RemindersProvider } from "@/contexts/RemindersContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,7 @@ import Appointments from "./pages/Appointments";
 import Inventory from "./pages/Inventory";
 import Analytics from "./pages/Analytics";
 import Finance from "./pages/Finance";
+import Reminders from "./pages/Reminders";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -26,29 +28,32 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/*"
-              element={
-                <ProtectedRoute>
-                  <AppLayout>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/patients" element={<Patients />} />
-                      <Route path="/patients/:id" element={<PatientProfile />} />
-                      <Route path="/appointments" element={<Appointments />} />
-                      <Route path="/inventory" element={<Inventory />} />
-                      <Route path="/finance" element={<Finance />} />
-                      <Route path="/analytics" element={<Analytics />} />
-                      <Route path="/profile" element={<Profile />} />
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </AppLayout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
+          <RemindersProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/patients" element={<Patients />} />
+                        <Route path="/patients/:id" element={<PatientProfile />} />
+                        <Route path="/appointments" element={<Appointments />} />
+                        <Route path="/reminders" element={<Reminders />} />
+                        <Route path="/inventory" element={<Inventory />} />
+                        <Route path="/finance" element={<Finance />} />
+                        <Route path="/analytics" element={<Analytics />} />
+                        <Route path="/profile" element={<Profile />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </RemindersProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

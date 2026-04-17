@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, Package, BarChart3, UserCircle, LogOut, Wallet, Bell } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, Package, BarChart3, LogOut, Wallet, Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -24,7 +24,6 @@ const navItems = [
   { key: "inventory", path: "/inventory", icon: Package },
   { key: "finance", path: "/finance", icon: Wallet },
   { key: "analytics", path: "/analytics", icon: BarChart3 },
-  { key: "profile", path: "/profile", icon: UserCircle },
 ];
 
 export function AppSidebar() {
@@ -81,13 +80,31 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border/40 p-4">
-        {!collapsed && user && (
-          <div className="mb-2 px-2 text-sm font-medium text-foreground truncate">
-            {user.name}
-          </div>
-        )}
+      <SidebarFooter className="border-t border-sidebar-border/40 p-4 space-y-1">
+        {/* User avatar → Profile page */}
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={location.pathname === "/profile"}
+              tooltip={t("nav.profile")}
+              className="rounded-xl transition-all duration-200 hover:bg-sidebar-accent/60"
+            >
+              <NavLink
+                to="/profile"
+                className="rounded-xl transition-all duration-200 hover:bg-sidebar-accent/60"
+                activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+              >
+                <div className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                  {user?.name?.charAt(0)?.toUpperCase() ?? "D"}
+                </div>
+                {!collapsed && (
+                  <span className="text-[13px] truncate">{user?.name ?? t("nav.profile")}</span>
+                )}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={t("common.logout")}

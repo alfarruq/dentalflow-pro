@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { CalendarDays, Plus, Search, Clock, User, List, CalendarRange, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addDays, addMonths, isWithinInterval, parseISO, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from "date-fns";
 import { uz } from "date-fns/locale";
@@ -55,6 +56,7 @@ const VIEW_MODE_KEY = "dentaflow-appointments-view";
 export default function Appointments() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { filterDoctorId, setLastUsedDoctorId } = useDoctors();
   const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
   const [view, setView] = useState("today");
@@ -282,7 +284,19 @@ export default function Appointments() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <User className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="font-medium text-sm truncate">{apt.patientName}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!apt.patientId.startsWith("new-")) navigate(`/patients/${apt.patientId}`);
+                                }}
+                                className={cn(
+                                  "font-medium text-sm truncate text-left",
+                                  !apt.patientId.startsWith("new-") && "hover:text-primary hover:underline cursor-pointer"
+                                )}
+                              >
+                                {apt.patientName}
+                              </button>
                               <DoctorBadge doctorId={apt.assignedDoctorId} variant="compact" />
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -390,7 +404,18 @@ export default function Appointments() {
                           <span className="font-mono font-semibold text-primary">{apt.time}</span>
                           <DoctorBadge doctorId={apt.assignedDoctorId} variant="dot" className="ml-auto" />
                         </div>
-                        <p className="font-semibold text-foreground truncate leading-tight">{apt.patientName}</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!apt.patientId.startsWith("new-")) navigate(`/patients/${apt.patientId}`);
+                          }}
+                          className={cn(
+                            "font-semibold text-foreground truncate leading-tight text-left w-full",
+                            !apt.patientId.startsWith("new-") && "hover:text-primary hover:underline cursor-pointer"
+                          )}
+                        >
+                          {apt.patientName}
+                        </button>
                         <p className="text-muted-foreground truncate leading-tight mt-0.5">
                           {t(`patients.${apt.treatmentType}`)}
                           {apt.toothNumber && ` · #${apt.toothNumber}`}

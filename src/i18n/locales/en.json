@@ -98,7 +98,11 @@
     "medicalNotesLabel": "Medical Notes",
     "medicalNotesTitle": "Medical Notes / Allergies",
     "noAlerts": "No medical alerts",
-    "totalVisits": "Total Visits"
+    "totalVisits": "Total Visits",
+    "treatmentAdded": "Treatment record added",
+    "appointmentScheduled": "Appointment scheduled",
+    "toothNumber": "Tooth number",
+    "cost": "Cost"
   },
   "appointments": {
     "title": "Appointments",

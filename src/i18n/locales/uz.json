@@ -98,7 +98,11 @@
     "medicalNotesLabel": "Tibbiy eslatmalar",
     "medicalNotesTitle": "Tibbiy Eslatmalar / Allergiya",
     "noAlerts": "Tibbiy ogohlantirishlar yo'q",
-    "totalVisits": "Jami tashriflar"
+    "totalVisits": "Jami tashriflar",
+    "treatmentAdded": "Davolash yozuvi qo'shildi",
+    "appointmentScheduled": "Uchrashuv belgilandi",
+    "toothNumber": "Tish raqami",
+    "cost": "Narx"
   },
   "appointments": {
     "title": "Uchrashuvlar",

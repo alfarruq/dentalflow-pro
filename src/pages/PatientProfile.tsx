@@ -5,20 +5,25 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
   Image as ImageIcon, CalendarPlus, Stethoscope,
-  Banknote, Edit, Save, X, Bell,
+  Banknote, Edit, Save, Bell, User,
 } from "lucide-react";
 import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
 import { AddReminderDialog } from "@/components/AddReminderDialog";
+import { DoctorBadge } from "@/components/DoctorBadge";
+import { DoctorSelect } from "@/components/DoctorSelect";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { mockPatients, getRemainingBalance, type Patient } from "@/data/mockPatients";
-import { DoctorBadge } from "@/components/DoctorBadge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { mockPatients, getRemainingBalance, type Patient, type TreatmentRecord, type TreatmentType } from "@/data/mockPatients";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -27,61 +32,291 @@ const statusColors: Record<string, string> = {
   completed: "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
 };
 
+const TOOTH_NUMBERS = [
+  "11","12","13","14","15","16","17","18",
+  "21","22","23","24","25","26","27","28",
+  "31","32","33","34","35","36","37","38",
+  "41","42","43","44","45","46","47","48",
+];
+
+const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
+  const h = 9 + Math.floor(i / 2);
+  const m = (i % 2) * 30;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+});
+
 function fmt(n: number) {
   return n.toLocaleString("uz-UZ");
 }
 
-function PatientHeader({ patient, t, onAddReminder }: { patient: Patient; t: (k: string) => string; onAddReminder: () => void }) {
-  return (
-    <Card className="shadow-sm">
-      <CardContent className="pt-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          {/* Left: avatar + info */}
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-              {patient.fullName.charAt(0)}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{patient.fullName}</h1>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span>{patient.age} {t("patientProfile.yearsOld")}</span>
-                <a href={`tel:${patient.phone}`} className="flex items-center gap-1 text-primary hover:underline">
-                  <Phone className="h-3.5 w-3.5" />{patient.phone}
-                </a>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge className={statusColors[patient.status]}>{t(`patients.${patient.status}`)}</Badge>
-                <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
-              </div>
-            </div>
-          </div>
+// ─── Add Appointment Dialog ───────────────────────────────────────────────────
+function AddAppointmentDialog({
+  patient,
+  open,
+  onOpenChange,
+}: {
+  patient: Patient;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const [aptDate, setAptDate] = useState<Date | undefined>(new Date());
+  const [aptTime, setAptTime] = useState("09:00");
+  const [aptTreatment, setAptTreatment] = useState<TreatmentType>("cleaning");
+  const [aptDoctorId, setAptDoctorId] = useState("");
+  const [aptNotes, setAptNotes] = useState("");
 
-          {/* Right: Quick Actions */}
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5">
-              <CalendarPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddReminder}>
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("reminders.addFromProfile")}</span>
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5">
-              <Stethoscope className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.addTreatment")}</span>
-            </Button>
-            <Button size="sm" className="gap-1.5">
-              <Banknote className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.acceptPayment")}</span>
-            </Button>
+  function reset() {
+    setAptDate(new Date());
+    setAptTime("09:00");
+    setAptTreatment("cleaning");
+    setAptDoctorId("");
+    setAptNotes("");
+  }
+
+  function handleSave() {
+    if (!aptDate) return;
+    reset();
+    onOpenChange(false);
+    toast.success(t("patientProfile.appointmentScheduled"));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CalendarPlus className="h-4 w-4 text-primary" />
+            {t("patientProfile.addAppointment")}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Locked patient row */}
+        <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-sm">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xs">
+            {patient.fullName.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium truncate">{patient.fullName}</p>
+            <p className="text-xs text-muted-foreground">{patient.phone}</p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="space-y-4">
+          {/* Date */}
+          <div className="space-y-1.5">
+            <Label>{t("appointments.date")}</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn("w-full justify-start text-left font-normal", !aptDate && "text-muted-foreground")}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {aptDate ? format(aptDate, "dd.MM.yyyy") : t("appointments.selectDate")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarPicker
+                  mode="single"
+                  selected={aptDate}
+                  onSelect={setAptDate}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Time */}
+          <div className="space-y-1.5">
+            <Label>{t("appointments.time")}</Label>
+            <Select value={aptTime} onValueChange={setAptTime}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIME_SLOTS.map((ts) => <SelectItem key={ts} value={ts}>{ts}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Treatment type */}
+          <div className="space-y-1.5">
+            <Label>{t("patients.treatmentType")}</Label>
+            <Select value={aptTreatment} onValueChange={(v) => setAptTreatment(v as TreatmentType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="implant">{t("patients.implant")}</SelectItem>
+                <SelectItem value="filling">{t("patients.filling")}</SelectItem>
+                <SelectItem value="cleaning">{t("patients.cleaning")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Doctor */}
+          <DoctorSelect
+            value={aptDoctorId}
+            onChange={setAptDoctorId}
+            label={t("reminders.doctor")}
+            hideIfSingle={false}
+          />
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label>{t("appointments.notes")}</Label>
+            <Textarea
+              value={aptNotes}
+              onChange={(e) => setAptNotes(e.target.value)}
+              rows={2}
+              placeholder="..."
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>
+            {t("patients.cancel")}
+          </Button>
+          <Button onClick={handleSave}>
+            {t("patients.save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-function PaymentDialog({ patient, t, onSave }: { patient: Patient; t: (k: string) => string; onSave: (amount: number) => void }) {
+// ─── Add Treatment Dialog ─────────────────────────────────────────────────────
+function AddTreatmentDialog({
+  open,
+  onOpenChange,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSave: (record: TreatmentRecord) => void;
+}) {
+  const { t } = useTranslation();
+  const [treatmentType, setTreatmentType] = useState<TreatmentType>("cleaning");
+  const [tooth, setTooth] = useState("");
+  const [cost, setCost] = useState("");
+  const [note, setNote] = useState("");
+  const [doctorId, setDoctorId] = useState("");
+
+  function reset() {
+    setTreatmentType("cleaning");
+    setTooth("");
+    setCost("");
+    setNote("");
+    setDoctorId("");
+  }
+
+  function handleSave() {
+    const record: TreatmentRecord = {
+      id: `tr-manual-${Date.now()}`,
+      date: new Date().toISOString(),
+      treatmentType,
+      tooth: tooth || "11",
+      cost: Number(cost) || 0,
+      note,
+      assignedDoctorId: doctorId || undefined,
+    };
+    onSave(record);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Stethoscope className="h-4 w-4 text-primary" />
+            {t("patientProfile.addTreatment")}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Treatment type */}
+          <div className="space-y-1.5">
+            <Label>{t("patients.treatmentType")}</Label>
+            <Select value={treatmentType} onValueChange={(v) => setTreatmentType(v as TreatmentType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="implant">{t("patients.implant")}</SelectItem>
+                <SelectItem value="filling">{t("patients.filling")}</SelectItem>
+                <SelectItem value="cleaning">{t("patients.cleaning")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tooth number */}
+          <div className="space-y-1.5">
+            <Label>{t("patientProfile.toothNumber")}</Label>
+            <Select value={tooth} onValueChange={setTooth}>
+              <SelectTrigger>
+                <SelectValue placeholder="— tanlang —" />
+              </SelectTrigger>
+              <SelectContent className="max-h-52">
+                {TOOTH_NUMBERS.map((n) => (
+                  <SelectItem key={n} value={n}>#{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Cost */}
+          <div className="space-y-1.5">
+            <Label>{t("patientProfile.cost")}</Label>
+            <Input
+              type="number"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              placeholder="500 000"
+            />
+          </div>
+
+          {/* Doctor */}
+          <DoctorSelect
+            value={doctorId}
+            onChange={setDoctorId}
+            label={t("reminders.doctor")}
+            hideIfSingle={false}
+          />
+
+          {/* Note */}
+          <div className="space-y-1.5">
+            <Label>{t("appointments.notes")}</Label>
+            <Textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              placeholder="..."
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>
+            {t("patients.cancel")}
+          </Button>
+          <Button onClick={handleSave}>
+            {t("patients.save")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Payment Dialog ───────────────────────────────────────────────────────────
+function PaymentDialog({
+  patient,
+  onSave,
+}: {
+  patient: Patient;
+  onSave: (amount: number) => void;
+}) {
+  const { t } = useTranslation();
   const [amount, setAmount] = useState("");
   const remaining = getRemainingBalance(patient);
 
@@ -113,11 +348,15 @@ function PaymentDialog({ patient, t, onSave }: { patient: Patient; t: (k: string
   );
 }
 
-function EditPatientDialog({ patient, t, onSave }: {
+// ─── Edit Patient Dialog ──────────────────────────────────────────────────────
+function EditPatientDialog({
+  patient,
+  onSave,
+}: {
   patient: Patient;
-  t: (k: string) => string;
   onSave: (data: { fullName: string; phone: string; allergies: string; medicalNotes: string }) => void;
 }) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState(patient.fullName);
   const [phone, setPhone] = useState(patient.phone);
   const [allergies, setAllergies] = useState(patient.allergies.join(", "));
@@ -154,6 +393,72 @@ function EditPatientDialog({ patient, t, onSave }: {
   );
 }
 
+// ─── Patient Header ───────────────────────────────────────────────────────────
+function PatientHeader({
+  patient,
+  onAddAppointment,
+  onAddTreatment,
+  onAddReminder,
+  onPayment,
+}: {
+  patient: Patient;
+  onAddAppointment: () => void;
+  onAddTreatment: () => void;
+  onAddReminder: () => void;
+  onPayment: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="pt-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          {/* Left: avatar + info */}
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
+              {patient.fullName.charAt(0)}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{patient.fullName}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>{patient.age} {t("patientProfile.yearsOld")}</span>
+                <a href={`tel:${patient.phone}`} className="flex items-center gap-1 text-primary hover:underline">
+                  <Phone className="h-3.5 w-3.5" />{patient.phone}
+                </a>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge className={statusColors[patient.status]}>{t(`patients.${patient.status}`)}</Badge>
+                <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Quick Actions */}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddAppointment}>
+              <CalendarPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddReminder}>
+              <Bell className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("reminders.addFromProfile")}</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddTreatment}>
+              <Stethoscope className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("patientProfile.addTreatment")}</span>
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={onPayment}>
+              <Banknote className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("patientProfile.acceptPayment")}</span>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PatientProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -166,6 +471,8 @@ export default function PatientProfile() {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [appointmentOpen, setAppointmentOpen] = useState(false);
+  const [treatmentOpen, setTreatmentOpen] = useState(false);
 
   if (!localPatient) {
     return (
@@ -201,6 +508,15 @@ export default function PatientProfile() {
     toast.success(t("patientProfile.patientUpdated"));
   };
 
+  const handleTreatmentSave = (record: TreatmentRecord) => {
+    setLocalPatient((prev) => {
+      if (!prev) return prev;
+      const history = [record, ...prev.treatmentHistory];
+      return { ...prev, treatmentHistory: history, totalCost: prev.totalCost + record.cost };
+    });
+    toast.success(t("patientProfile.treatmentAdded"));
+  };
+
   return (
     <div className="space-y-6">
       {/* Back + Edit buttons */}
@@ -216,37 +532,50 @@ export default function PatientProfile() {
               {t("patientProfile.editPatient")}
             </Button>
           </DialogTrigger>
-          <EditPatientDialog patient={localPatient} t={t} onSave={handleEditSave} />
+          <EditPatientDialog patient={localPatient} onSave={handleEditSave} />
         </Dialog>
       </div>
 
       {/* Header with quick actions */}
-      <PatientHeader patient={localPatient} t={t} onAddReminder={() => setReminderOpen(true)} />
-
-      <AddReminderDialog
-        open={reminderOpen}
-        onOpenChange={setReminderOpen}
-        lockedPatientId={localPatient.id}
+      <PatientHeader
+        patient={localPatient}
+        onAddAppointment={() => setAppointmentOpen(true)}
+        onAddTreatment={() => setTreatmentOpen(true)}
+        onAddReminder={() => setReminderOpen(true)}
+        onPayment={() => setPaymentOpen(true)}
       />
+
+      {/* Dialogs */}
+      <AddReminderDialog open={reminderOpen} onOpenChange={setReminderOpen} lockedPatientId={localPatient.id} />
+      <AddAppointmentDialog patient={localPatient} open={appointmentOpen} onOpenChange={setAppointmentOpen} />
+      <AddTreatmentDialog open={treatmentOpen} onOpenChange={setTreatmentOpen} onSave={handleTreatmentSave} />
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <PaymentDialog patient={localPatient} onSave={handlePayment} />
+      </Dialog>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="w-full justify-start">
           <TabsTrigger value="overview">{t("patientProfile.overview")}</TabsTrigger>
-          <TabsTrigger value="history">{t("patientProfile.treatmentHistory")}</TabsTrigger>
+          <TabsTrigger value="history">
+            {t("patientProfile.treatmentHistory")}
+            {localPatient.treatmentHistory.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                {localPatient.treatmentHistory.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="gallery">{t("patientProfile.gallery")}</TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab — Two-column layout */}
+        {/* Overview Tab */}
         <TabsContent value="overview">
-          {/* Dental Chart — interactive */}
           <div className="mb-4">
             <DentalChart teeth={teethData} onUpdate={setTeethData} />
           </div>
 
-          {/* Two-column grid */}
           <div className="grid gap-4 md:grid-cols-2">
-            {/* Left: Financial + Medical */}
             <div className="space-y-4">
               {/* Financial Summary */}
               <Card className="shadow-sm">
@@ -256,15 +585,10 @@ export default function PatientProfile() {
                       <CreditCard className="h-4 w-4 text-muted-foreground" />
                       {t("patientProfile.financialSummary")}
                     </span>
-                    <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs">
-                          <Banknote className="h-3.5 w-3.5" />
-                          {t("patientProfile.acceptPayment")}
-                        </Button>
-                      </DialogTrigger>
-                      <PaymentDialog patient={localPatient} t={t} onSave={handlePayment} />
-                    </Dialog>
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => setPaymentOpen(true)}>
+                      <Banknote className="h-3.5 w-3.5" />
+                      {t("patientProfile.acceptPayment")}
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -313,7 +637,7 @@ export default function PatientProfile() {
               </Card>
             </div>
 
-            {/* Right: Stats cards */}
+            {/* Right: Stats */}
             <div className="space-y-4">
               <Card className="shadow-sm">
                 <CardHeader className="pb-2">
@@ -338,15 +662,25 @@ export default function PatientProfile() {
         {/* Treatment History Tab */}
         <TabsContent value="history">
           <Card className="shadow-sm">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Calendar className="h-5 w-5" />
                 {t("patientProfile.treatmentHistory")}
               </CardTitle>
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setTreatmentOpen(true)}>
+                <Stethoscope className="h-4 w-4" />
+                {t("patientProfile.addTreatment")}
+              </Button>
             </CardHeader>
             <CardContent>
               {localPatient.treatmentHistory.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center">{t("patientProfile.noHistory")}</p>
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
+                  <Stethoscope className="h-10 w-10 opacity-30" />
+                  <p>{t("patientProfile.noHistory")}</p>
+                  <Button size="sm" variant="outline" onClick={() => setTreatmentOpen(true)}>
+                    {t("patientProfile.addTreatment")}
+                  </Button>
+                </div>
               ) : (
                 <div className="relative space-y-0">
                   {localPatient.treatmentHistory.map((record, idx) => (

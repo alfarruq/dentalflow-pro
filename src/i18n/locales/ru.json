@@ -98,7 +98,11 @@
     "medicalNotesLabel": "Медицинские заметки",
     "medicalNotesTitle": "Медицинские заметки / Аллергии",
     "noAlerts": "Нет медицинских предупреждений",
-    "totalVisits": "Всего визитов"
+    "totalVisits": "Всего визитов",
+    "treatmentAdded": "Запись о лечении добавлена",
+    "appointmentScheduled": "Запись создана",
+    "toothNumber": "Номер зуба",
+    "cost": "Стоимость"
   },
   "appointments": {
     "title": "Записи",

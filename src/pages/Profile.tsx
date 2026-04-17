@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { DoctorsManagementCard } from "@/components/DoctorsManagementCard";
 
 interface Service {
   id: string;
@@ -253,6 +254,9 @@ export default function Profile() {
           )}
         </CardContent>
       </Card>
+
+      {/* Doctors Management */}
+      <DoctorsManagementCard />
 
       {/* Services */}
       <Card>

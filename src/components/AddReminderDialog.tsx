@@ -13,6 +13,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { mockPatients } from "@/data/mockPatients";
 import { useReminders } from "@/contexts/RemindersContext";
+import { useDoctors } from "@/contexts/DoctorsContext";
+import { DoctorSelect } from "@/components/DoctorSelect";
 import { ReminderPriority } from "@/data/mockReminders";
 import { useToast } from "@/hooks/use-toast";
 
@@ -32,6 +34,7 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
   const { t } = useTranslation();
   const { toast } = useToast();
   const { addReminder } = useReminders();
+  const { setLastUsedDoctorId } = useDoctors();
 
   const [patientId, setPatientId] = useState<string>(lockedPatientId ?? "");
   const [patientSearch, setPatientSearch] = useState("");
@@ -40,6 +43,7 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
   const [dueTime, setDueTime] = useState("09:00");
   const [priority, setPriority] = useState<ReminderPriority>("normal");
+  const [doctorId, setDoctorId] = useState("");
 
   useEffect(() => {
     if (open) {
@@ -50,6 +54,7 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
       setDueDate(new Date());
       setDueTime("09:00");
       setPriority("normal");
+      setDoctorId("");
     }
   }, [open, lockedPatientId]);
 
@@ -66,7 +71,7 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
 
   const handleSave = () => {
     const patient = lockedPatient ?? mockPatients.find((p) => p.id === patientId);
-    if (!patient || !title.trim() || !dueDate) {
+    if (!patient || !title.trim() || !dueDate || !doctorId) {
       toast({ title: t("reminders.fillRequired"), variant: "destructive" });
       return;
     }
@@ -79,7 +84,9 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
       dueDate: format(dueDate, "yyyy-MM-dd"),
       dueTime,
       priority,
+      assignedDoctorId: doctorId,
     });
+    setLastUsedDoctorId(doctorId);
     toast({ title: t("reminders.reminderAdded") });
     onOpenChange(false);
   };
@@ -179,6 +186,13 @@ export function AddReminderDialog({ open, onOpenChange, lockedPatientId }: AddRe
               </Select>
             </div>
           </div>
+
+          <DoctorSelect
+            value={doctorId}
+            onChange={setDoctorId}
+            label={t("reminders.doctor")}
+            required
+          />
 
           <div className="space-y-1">
             <Label>{t("reminders.priority")}</Label>

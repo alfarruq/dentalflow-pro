@@ -158,7 +158,28 @@
     "call": "Qo'ng'iroq qilish",
     "delete": "O'chirish",
     "toggleComplete": "Bajarilgan deb belgilash",
-    "addFromProfile": "Eslatma qo'shish"
+    "addFromProfile": "Eslatma qo'shish",
+    "doctor": "Doktor"
+  },
+  "doctors": {
+    "title": "Doktorlar",
+    "subtitle": "Markaz doktorlarini boshqaring",
+    "allDoctors": "Barchasi",
+    "addDoctor": "Yangi doktor",
+    "editDoctor": "Doktorni tahrirlash",
+    "name": "Ism",
+    "specialty": "Mutaxassislik",
+    "phone": "Telefon",
+    "email": "Email",
+    "color": "Rang",
+    "selectDoctor": "Doktorni tanlang",
+    "active": "Faol",
+    "inactive": "Nofaol",
+    "delete": "O'chirish",
+    "restore": "Tiklash",
+    "doctorAdded": "Doktor qo'shildi",
+    "doctorUpdated": "Doktor yangilandi",
+    "doctorDeleted": "Doktor o'chirildi"
   },
   "inventory": {
     "title": "Ombor",
@@ -193,7 +214,23 @@
     "unit_pachka": "pachka",
     "unit_quti": "quti",
     "unit_juft": "juft",
-    "unitPrice": "Tannarxi"
+    "unitPrice": "Tannarxi",
+    "useItem": "Sarflash",
+    "useItemTitle": "Material sarflash",
+    "useItemDesc": "Qaysi doktor nechta ishlatganini kiriting",
+    "usageLog": "Sarflash logi",
+    "usageLogEmpty": "Hali hech narsa sarflanmagan",
+    "usedQty": "Miqdor",
+    "usedBy": "Doktor",
+    "usedAt": "Sana",
+    "usageNote": "Izoh",
+    "usageNotePlaceholder": "Masalan: implant jarrohlik...",
+    "totalCost": "Jami xarajat",
+    "stockItems": "Mahsulotlar",
+    "qtyRequired": "Miqdor kiriting",
+    "doctorRequired": "Doktorni tanlang",
+    "notEnoughStock": "Omborda yetarli mahsulot yo'q",
+    "usageAdded": "Sarflash qayd etildi"
   },
   "dentalChart": {
     "title": "Tish xaritasi",
@@ -231,7 +268,20 @@
     "svc_implant": "Implant",
     "svc_whitening": "Oqartirish",
     "svc_crown": "Toj o'rnatish",
-    "customRange": "Oraliq tanlash"
+    "customRange": "Oraliq tanlash",
+    "doctorPerformance": "Doktorlar samaradorligi",
+    "doctorPerformanceDesc": "Tanlangan davr bo'yicha har bir doktorning ko'rsatkichlari",
+    "dpAppointments": "Uchrashuvlar",
+    "dpRevenue": "Daromad",
+    "dpMaterialCost": "Material xarajat",
+    "dpNet": "Sof foyda",
+    "dpCompleted": "Bajarilgan",
+    "dpCancelled": "Bekor",
+    "dpNoData": "Bu davr uchun ma'lumot yo'q",
+    "dpBestDoctor": "Eng samarali doktor",
+    "dpCompare": "Qiyosiy tahlil",
+    "dpAppointmentsChart": "Uchrashuvlar soni (doktor bo'yicha)",
+    "dpRevenueChart": "Daromad (doktor bo'yicha)"
   },
   "profile": {
     "title": "Profil",
@@ -372,6 +422,14 @@
     "inc_oqartirish": "Oqartirish",
     "inc_toj": "Toj",
     "inc_boshqa_daromad": "Boshqa daromad",
-    "dashboardUpcoming": "Kutilayotgan to'lovlar"
+    "dashboardUpcoming": "Kutilayotgan to'lovlar",
+    "doctorReport": "Doktor hisoboti",
+    "doctorReportDesc": "Har bir doktor bo'yicha daromad va xarajatlar",
+    "drIncome": "Daromad",
+    "drMaterialCost": "Material xarajat",
+    "drDirectExpense": "To'g'ridan xarajat",
+    "drNet": "Sof foyda",
+    "drNoData": "Bu doktor uchun ma'lumot yo'q",
+    "assignedDoctor": "Doktor (ixtiyoriy)"
   }
 }

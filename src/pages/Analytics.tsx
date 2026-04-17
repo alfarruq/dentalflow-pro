@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
+import { format, subDays, subMonths, subYears, parseISO, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -22,10 +23,19 @@ import {
   Cell,
   BarChart,
   Bar,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
 } from "recharts";
-import { Users, Stethoscope, Package, BadgeDollarSign, Trophy, CalendarIcon } from "lucide-react";
+import { Users, Stethoscope, Package, BadgeDollarSign, Trophy, CalendarIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { useDoctors } from "@/contexts/DoctorsContext";
+import { useInventory } from "@/contexts/InventoryContext";
+import { doctorColorMap } from "@/data/mockDoctors";
+import { mockAppointments } from "@/data/mockAppointments";
+import { mockIncomes } from "@/data/mockFinance";
+import { DoctorFilterChips } from "@/components/DoctorFilterChips";
 
 type Period = "weekly" | "monthly" | "yearly" | "custom";
 
@@ -170,6 +180,16 @@ const PIE_COLORS = [
   "hsl(var(--chart-5))",
 ];
 
+const DOCTOR_HEX: Record<string, string> = {
+  blue: "#3b82f6",
+  emerald: "#10b981",
+  amber: "#f59e0b",
+  purple: "#8b5cf6",
+  rose: "#f43f5e",
+  cyan: "#06b6d4",
+  orange: "#f97316",
+};
+
 const fmt = (n: number) =>
   new Intl.NumberFormat("uz-UZ").format(n);
 
@@ -180,6 +200,9 @@ export default function Analytics() {
     from: undefined,
     to: undefined,
   });
+
+  const { activeDoctors, isMulti } = useDoctors();
+  const { usages } = useInventory();
 
   const effectivePeriod = period === "custom" ? "monthly" : period;
   const d = mockData[effectivePeriod];
@@ -194,6 +217,86 @@ export default function Analytics() {
           : t("analytics.yearly");
 
   const maxService = Math.max(...d.services.map((s) => s.count));
+
+  // Effective date range for doctor stats filtering
+  const effectiveRange = useMemo(() => {
+    const now = new Date();
+    if (period === "custom" && dateRange.from && dateRange.to) {
+      return { from: startOfDay(dateRange.from), to: endOfDay(dateRange.to) };
+    }
+    if (period === "weekly") return { from: startOfDay(subDays(now, 7)), to: endOfDay(now) };
+    if (period === "yearly") return { from: startOfDay(subYears(now, 1)), to: endOfDay(now) };
+    // monthly default
+    return { from: startOfDay(subMonths(now, 1)), to: endOfDay(now) };
+  }, [period, dateRange]);
+
+  const periodAppointments = useMemo(() =>
+    mockAppointments.filter((apt) => {
+      const dt = parseISO(apt.date);
+      return isAfter(dt, effectiveRange.from) && isBefore(dt, effectiveRange.to);
+    }),
+    [effectiveRange]
+  );
+
+  const periodIncomes = useMemo(() =>
+    mockIncomes.filter((inc) => {
+      const dt = parseISO(inc.date);
+      return isAfter(dt, effectiveRange.from) && isBefore(dt, effectiveRange.to);
+    }),
+    [effectiveRange]
+  );
+
+  const periodUsages = useMemo(() =>
+    usages.filter((u) => {
+      const dt = parseISO(u.usedAt);
+      return isAfter(dt, effectiveRange.from) && isBefore(dt, effectiveRange.to);
+    }),
+    [effectiveRange, usages]
+  );
+
+  const doctorStats = useMemo(() =>
+    activeDoctors.map((doc) => {
+      const docApts = periodAppointments.filter((a) => a.assignedDoctorId === doc.id);
+      const docIncomes = periodIncomes.filter((i) => i.assignedDoctorId === doc.id);
+      const docUsages = periodUsages.filter((u) => u.usedByDoctorId === doc.id);
+
+      const appointments = docApts.length;
+      const completed = docApts.filter((a) => a.status === "completed").length;
+      const cancelled = docApts.filter((a) => a.status === "cancelled").length;
+      const revenue = docIncomes.reduce((sum, i) => sum + i.amount, 0);
+      const materialCost = docUsages.reduce((sum, u) => sum + u.quantity * u.unitPrice, 0);
+      const net = revenue - materialCost;
+
+      return { doc, appointments, completed, cancelled, revenue, materialCost, net };
+    }),
+    [activeDoctors, periodAppointments, periodIncomes, periodUsages]
+  );
+
+  const bestDoctorId = useMemo(() => {
+    if (!doctorStats.length) return null;
+    return doctorStats.reduce(
+      (best, s) => (s.revenue > best.revenue ? s : best),
+      doctorStats[0]
+    ).doc.id;
+  }, [doctorStats]);
+
+  const aptChartData = useMemo(() =>
+    doctorStats.map((s) => ({
+      name: s.doc.name.replace(/^Dr\.?\s*/i, ""),
+      value: s.appointments,
+      hexColor: DOCTOR_HEX[s.doc.color] ?? "#3b82f6",
+    })),
+    [doctorStats]
+  );
+
+  const revenueChartData = useMemo(() =>
+    doctorStats.map((s) => ({
+      name: s.doc.name.replace(/^Dr\.?\s*/i, ""),
+      value: s.revenue,
+      hexColor: DOCTOR_HEX[s.doc.color] ?? "#3b82f6",
+    })),
+    [doctorStats]
+  );
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl">
@@ -248,6 +351,9 @@ export default function Analytics() {
           </Popover>
         </div>
       </div>
+
+      {/* Doctor filter chips — shown only when isMulti */}
+      <DoctorFilterChips />
 
       {/* Motivation Card */}
       <Card className="border-primary/10 bg-primary/[0.03] hidden sm:block">
@@ -421,6 +527,236 @@ export default function Analytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ─── Doctor Performance Section (only for multi-doctor clinics) ─── */}
+      {isMulti && (
+        <div className="space-y-6">
+          {/* Section header */}
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-[16px] font-semibold tracking-tight">
+                {t("analytics.doctorPerformance")}
+              </h2>
+              <p className="text-[13px] text-muted-foreground mt-0.5">
+                {t("analytics.doctorPerformanceDesc")}
+              </p>
+            </div>
+            {bestDoctorId && (
+              <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground shrink-0">
+                <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                <span>{t("analytics.dpBestDoctor")}:</span>
+                <span className="font-semibold text-foreground">
+                  {doctorStats.find((s) => s.doc.id === bestDoctorId)?.doc.name.replace(/^Dr\.?\s*/i, "")}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Per-doctor stat cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {doctorStats.map(({ doc, appointments, completed, cancelled, revenue, materialCost, net }) => {
+              const palette = doctorColorMap[doc.color];
+              const hex = DOCTOR_HEX[doc.color] ?? "#3b82f6";
+              const isBest = doc.id === bestDoctorId;
+              const shortName = doc.name.replace(/^Dr\.?\s*/i, "");
+              const completionRate = appointments > 0 ? Math.round((completed / appointments) * 100) : 0;
+
+              return (
+                <Card
+                  key={doc.id}
+                  className={cn(
+                    "overflow-hidden transition-shadow",
+                    isBest && "ring-1 ring-amber-400/50 shadow-md"
+                  )}
+                >
+                  {/* Color stripe */}
+                  <div className="h-1" style={{ backgroundColor: hex }} />
+
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="h-8 w-8 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0"
+                          style={{ backgroundColor: hex }}
+                        >
+                          {shortName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold leading-tight truncate">
+                            {doc.name}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground truncate">{doc.specialty}</p>
+                        </div>
+                      </div>
+                      {isBest && (
+                        <Badge className="shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 text-[10px] gap-1 font-medium">
+                          <Trophy className="h-3 w-3" />
+                          Top
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="px-4 pb-4 space-y-3">
+                    {/* Completion progress */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] text-muted-foreground">
+                        <span>{t("analytics.dpCompleted")}</span>
+                        <span className="tabular-nums font-medium text-foreground">
+                          {completed} / {appointments} ({completionRate}%)
+                        </span>
+                      </div>
+                      <Progress value={completionRate} className="h-1.5 rounded-full" />
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className={cn("rounded-xl p-3", palette.bgSoft)}>
+                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                          {t("analytics.dpAppointments")}
+                        </p>
+                        <p className={cn("text-[20px] font-bold tabular-nums leading-none", palette.text)}>
+                          {appointments}
+                        </p>
+                        {cancelled > 0 && (
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {cancelled} {t("analytics.dpCancelled")}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
+                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                          {t("analytics.dpRevenue")}
+                        </p>
+                        <p className="text-[14px] font-bold tabular-nums leading-none text-emerald-700 dark:text-emerald-300">
+                          {fmt(revenue)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{t("common.currency")}</p>
+                      </div>
+
+                      <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 p-3">
+                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                          {t("analytics.dpMaterialCost")}
+                        </p>
+                        <p className="text-[14px] font-bold tabular-nums leading-none text-rose-600 dark:text-rose-400">
+                          {fmt(materialCost)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{t("common.currency")}</p>
+                      </div>
+
+                      <div className={cn(
+                        "rounded-xl p-3",
+                        net >= 0
+                          ? "bg-blue-50 dark:bg-blue-900/20"
+                          : "bg-rose-50 dark:bg-rose-900/20"
+                      )}>
+                        <p className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wide">
+                          {t("analytics.dpNet")}
+                        </p>
+                        <p className={cn(
+                          "text-[14px] font-bold tabular-nums leading-none",
+                          net >= 0
+                            ? "text-blue-700 dark:text-blue-300"
+                            : "text-rose-600 dark:text-rose-400"
+                        )}>
+                          {net >= 0 ? "" : "-"}{fmt(Math.abs(net))}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {net >= 0
+                            ? <TrendingUp className="h-3 w-3 text-emerald-500" />
+                            : <TrendingDown className="h-3 w-3 text-rose-500" />
+                          }
+                          <p className="text-[10px] text-muted-foreground">{t("common.currency")}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Comparative bar charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Appointments by doctor */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[15px]">{t("analytics.dpAppointmentsChart")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={aptChartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--accent))" }}
+                      formatter={(v: number) => [v, t("analytics.dpAppointments")]}
+                    />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                      {aptChartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.hexColor} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Revenue by doctor */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-[15px]">{t("analytics.dpRevenueChart")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={revenueChartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v: number) =>
+                        v >= 1_000_000
+                          ? `${(v / 1_000_000).toFixed(0)}M`
+                          : v >= 1_000
+                          ? `${(v / 1_000).toFixed(0)}K`
+                          : String(v)
+                      }
+                    />
+                    <Tooltip
+                      cursor={{ fill: "hsl(var(--accent))" }}
+                      formatter={(v: number) => [`${fmt(v)} ${t("common.currency")}`, t("analytics.dpRevenue")]}
+                    />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={40}>
+                      {revenueChartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.hexColor} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

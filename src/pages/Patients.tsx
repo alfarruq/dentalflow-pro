@@ -12,6 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { mockPatients, getRemainingBalance, type Patient, type TreatmentType, type PatientStatus } from "@/data/mockPatients";
+import { useDoctors } from "@/contexts/DoctorsContext";
+import { DoctorFilterChips } from "@/components/DoctorFilterChips";
+import { DoctorBadge } from "@/components/DoctorBadge";
+import { DoctorSelect } from "@/components/DoctorSelect";
 
 const PAGE_SIZE = 10;
 
@@ -28,6 +32,8 @@ function formatCurrency(amount: number) {
 export default function Patients() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { filterDoctorId, setLastUsedDoctorId } = useDoctors();
+
   const [patients, setPatients] = useState<Patient[]>(mockPatients);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -40,19 +46,43 @@ export default function Patients() {
   const [newStatus, setNewStatus] = useState<PatientStatus>("pending");
   const [newTotalCost, setNewTotalCost] = useState("");
   const [newAmountPaid, setNewAmountPaid] = useState("");
+  const [newDoctorId, setNewDoctorId] = useState("");
+
+  // Doctor counts for filter chips
+  const doctorCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of patients) {
+      if (p.assignedDoctorId) {
+        counts[p.assignedDoctorId] = (counts[p.assignedDoctorId] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [patients]);
 
   const filtered = useMemo(() => {
     let result = [...patients];
-    if (search) { const q = search.toLowerCase(); result = result.filter((p) => p.fullName.toLowerCase().includes(q)); }
+    // Doctor filter
+    if (filterDoctorId) result = result.filter((p) => p.assignedDoctorId === filterDoctorId);
+    // Search
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((p) => p.fullName.toLowerCase().includes(q));
+    }
     if (statusFilter !== "all") result = result.filter((p) => p.status === statusFilter);
     if (treatmentFilter !== "all") result = result.filter((p) => p.treatmentType === treatmentFilter);
     result.sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
     return result;
-  }, [patients, search, statusFilter, treatmentFilter]);
+  }, [patients, search, statusFilter, treatmentFilter, filterDoctorId]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function resetForm() {
+    setNewName(""); setNewPhone(""); setNewTreatment("cleaning");
+    setNewStatus("pending"); setNewTotalCost(""); setNewAmountPaid("");
+    setNewDoctorId("");
+  }
 
   function handleAddPatient() {
     if (!newName.trim()) return;
@@ -61,17 +91,20 @@ export default function Patients() {
       age: 30, allergies: [], medicalNotes: "", appointmentDate: new Date().toISOString(),
       treatmentType: newTreatment, status: newStatus, totalCost: Number(newTotalCost) || 0,
       amountPaid: Number(newAmountPaid) || 0, treatmentHistory: [], galleryImages: [],
+      assignedDoctorId: newDoctorId || undefined,
     };
     setPatients((prev) => [patient, ...prev]);
-    setNewName(""); setNewPhone(""); setNewTreatment("cleaning"); setNewStatus("pending"); setNewTotalCost(""); setNewAmountPaid("");
-    setDialogOpen(false); setPage(1);
+    if (newDoctorId) setLastUsedDoctorId(newDoctorId);
+    resetForm();
+    setDialogOpen(false);
+    setPage(1);
   }
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{t("patients.title")}</h1>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="gap-2 w-full sm:w-auto"><Plus className="h-4 w-4" />{t("patients.addPatient")}</Button>
           </DialogTrigger>
@@ -81,8 +114,14 @@ export default function Patients() {
               <DialogDescription>{t("patients.addPatientDesc")}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2"><Label className="text-[13px]">{t("patients.fullName")}</Label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Aziz Karimov" /></div>
-              <div className="grid gap-2"><Label className="text-[13px]">{t("patients.phone")}</Label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998901234567" /></div>
+              <div className="grid gap-2">
+                <Label className="text-[13px]">{t("patients.fullName")}</Label>
+                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Aziz Karimov" />
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-[13px]">{t("patients.phone")}</Label>
+                <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998901234567" />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label className="text-[13px]">{t("patients.treatmentType")}</Label>
@@ -108,18 +147,31 @@ export default function Patients() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2"><Label className="text-[13px]">{t("patients.totalCost")}</Label><Input type="number" value={newTotalCost} onChange={(e) => setNewTotalCost(e.target.value)} placeholder="500000" /></div>
-                <div className="grid gap-2"><Label className="text-[13px]">{t("patients.paid")}</Label><Input type="number" value={newAmountPaid} onChange={(e) => setNewAmountPaid(e.target.value)} placeholder="200000" /></div>
+                <div className="grid gap-2">
+                  <Label className="text-[13px]">{t("patients.totalCost")}</Label>
+                  <Input type="number" value={newTotalCost} onChange={(e) => setNewTotalCost(e.target.value)} placeholder="500000" />
+                </div>
+                <div className="grid gap-2">
+                  <Label className="text-[13px]">{t("patients.paid")}</Label>
+                  <Input type="number" value={newAmountPaid} onChange={(e) => setNewAmountPaid(e.target.value)} placeholder="200000" />
+                </div>
               </div>
+              {/* Doctor selector — hidden when single-doctor clinic */}
+              <DoctorSelect
+                value={newDoctorId}
+                onChange={setNewDoctorId}
+                label={t("finance.assignedDoctor")}
+              />
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2">
-              <Button variant="outline" onClick={() => setDialogOpen(false)} className="w-full sm:w-auto">{t("patients.cancel")}</Button>
+              <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }} className="w-full sm:w-auto">{t("patients.cancel")}</Button>
               <Button onClick={handleAddPatient} className="w-full sm:w-auto">{t("patients.save")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Search + status/treatment filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground stroke-[1.5]" />
@@ -127,7 +179,7 @@ export default function Patients() {
         </div>
         <div className="flex gap-2">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[160px] rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("patients.allStatuses")}</SelectItem>
               <SelectItem value="pending">{t("patients.pending")}</SelectItem>
@@ -136,7 +188,7 @@ export default function Patients() {
             </SelectContent>
           </Select>
           <Select value={treatmentFilter} onValueChange={(v) => { setTreatmentFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-full sm:w-[180px] rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[160px] rounded-xl"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t("patients.allTreatments")}</SelectItem>
               <SelectItem value="implant">{t("patients.implant")}</SelectItem>
@@ -146,6 +198,9 @@ export default function Patients() {
           </Select>
         </div>
       </div>
+
+      {/* Doctor filter chips — shown only for multi-doctor clinics */}
+      <DoctorFilterChips counts={doctorCounts} totalCount={patients.length} />
 
       {/* Mobile card view */}
       <div className="block sm:hidden space-y-3">
@@ -157,16 +212,18 @@ export default function Patients() {
             return (
               <Card key={patient.id} className="p-4 cursor-pointer active:scale-[0.98] transition-transform" onClick={() => navigate(`/patients/${patient.id}`)}>
                 <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-[14px]">{patient.fullName}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[14px] truncate">{patient.fullName}</p>
                     <p className="text-xs text-muted-foreground">{patient.phone}</p>
                   </div>
-                  <Badge className={`border-0 text-[11px] ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge>
+                  <Badge className={`border-0 text-[11px] ml-2 shrink-0 ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{t(`patients.${patient.treatmentType}`)}</span>
                   <span>{format(new Date(patient.appointmentDate), "dd.MM.yyyy")}</span>
                 </div>
+                {/* Doctor badge */}
+                <DoctorBadge doctorId={patient.assignedDoctorId} variant="compact" className="mt-1.5" />
                 <div className="flex items-center justify-between mt-2 text-sm">
                   <span className="text-muted-foreground">{t("patients.remaining")}:</span>
                   <span className={remaining > 0 ? "font-semibold text-destructive" : "font-semibold text-emerald-600"}>
@@ -190,27 +247,27 @@ export default function Patients() {
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("patients.appointmentDate")}</TableHead>
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.treatmentType")}</TableHead>
                 <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.status")}</TableHead>
-                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden md:table-cell">{t("patients.totalCost")}</TableHead>
-                <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden lg:table-cell">{t("patients.paid")}</TableHead>
+                <TableHead className="text-[12px] font-medium uppercase tracking-wider text-muted-foreground hidden xl:table-cell">{t("doctors.title")}</TableHead>
                 <TableHead className="text-right text-[12px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.remaining")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginated.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">{t("patients.noResults")}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{t("patients.noResults")}</TableCell></TableRow>
               ) : (
                 paginated.map((patient) => {
                   const remaining = getRemainingBalance(patient);
                   const hasDebt = remaining > 0;
                   return (
                     <TableRow key={patient.id} className="cursor-pointer transition-colors border-b border-border/30 hover:bg-accent/30" onClick={() => navigate(`/patients/${patient.id}`)}>
-                      <TableCell className="font-medium text-[13px]">{patient.fullName}</TableCell>
-                      <TableCell className="text-muted-foreground text-[13px] hidden md:table-cell">{patient.phone}</TableCell>
-                      <TableCell className="text-muted-foreground text-[13px] hidden lg:table-cell">{format(new Date(patient.appointmentDate), "dd.MM.yyyy HH:mm")}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[12px] rounded-lg">{t(`patients.${patient.treatmentType}`)}</Badge></TableCell>
-                      <TableCell><Badge className={`border-0 text-[11px] ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge></TableCell>
-                      <TableCell className="text-right tabular-nums text-[13px] hidden md:table-cell">{formatCurrency(patient.totalCost)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-[13px] hidden lg:table-cell">{formatCurrency(patient.amountPaid)}</TableCell>
+                      <TableCell className="font-medium text-[13px] whitespace-nowrap">{patient.fullName}</TableCell>
+                      <TableCell className="text-muted-foreground text-[13px] hidden md:table-cell whitespace-nowrap">{patient.phone}</TableCell>
+                      <TableCell className="text-muted-foreground text-[13px] hidden lg:table-cell whitespace-nowrap">{format(new Date(patient.appointmentDate), "dd.MM.yyyy HH:mm")}</TableCell>
+                      <TableCell><Badge variant="outline" className="text-[12px] rounded-lg whitespace-nowrap">{t(`patients.${patient.treatmentType}`)}</Badge></TableCell>
+                      <TableCell><Badge className={`border-0 text-[11px] whitespace-nowrap ${statusColors[patient.status]}`}>{t(`patients.${patient.status}`)}</Badge></TableCell>
+                      <TableCell className="hidden xl:table-cell">
+                        <DoctorBadge doctorId={patient.assignedDoctorId} variant="compact" />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums text-[13px]">
                         <span className="flex items-center justify-end gap-2">
                           {formatCurrency(remaining)}

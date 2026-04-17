@@ -1,4 +1,5 @@
 import { mockPatients, TreatmentType } from "./mockPatients";
+import { mockDoctors } from "./mockDoctors";
 
 export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancelled";
 
@@ -13,6 +14,7 @@ export interface Appointment {
   toothNumber?: number;
   status: AppointmentStatus;
   notes: string;
+  assignedDoctorId: string;
 }
 
 const treatments: TreatmentType[] = ["implant", "filling", "cleaning"];
@@ -69,6 +71,7 @@ export function generateMockAppointments(): Appointment[] {
       const status: AppointmentStatus = dayOffset < 0 ? "completed" : pick(appointmentStatuses);
       const treatment = pick(treatments);
       const toothNumber = treatment !== "cleaning" ? Math.floor(rng() * 32) + 1 : undefined;
+      const doctor = pick(mockDoctors.filter((d) => d.isActive));
 
       appointments.push({
         id: `apt-${String(id++).padStart(3, "0")}`,
@@ -81,6 +84,7 @@ export function generateMockAppointments(): Appointment[] {
         toothNumber,
         status,
         notes: pick(noteOptions),
+        assignedDoctorId: doctor.id,
       });
     }
   }

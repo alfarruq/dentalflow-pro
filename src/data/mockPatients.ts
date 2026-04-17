@@ -1,3 +1,5 @@
+import { pickRandomDoctorId } from "./mockDoctors";
+
 export type TreatmentType = "implant" | "filling" | "cleaning";
 export type PatientStatus = "pending" | "in_progress" | "completed";
 
@@ -8,6 +10,7 @@ export interface TreatmentRecord {
   tooth: string;
   cost: number;
   note: string;
+  assignedDoctorId?: string;
 }
 
 export interface Patient {
@@ -24,6 +27,7 @@ export interface Patient {
   amountPaid: number;
   treatmentHistory: TreatmentRecord[];
   galleryImages: string[];
+  assignedDoctorId?: string;
 }
 
 export function getRemainingBalance(p: Patient) {
@@ -125,6 +129,7 @@ export function generateMockPatients(): Patient[] {
         tooth: pick(toothNumbers),
         cost: hCost,
         note: pick(doctorNotes),
+        assignedDoctorId: pickRandomDoctorId(rng),
       };
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -151,6 +156,7 @@ export function generateMockPatients(): Patient[] {
       amountPaid,
       treatmentHistory,
       galleryImages,
+      assignedDoctorId: pickRandomDoctorId(rng),
     };
   });
 }

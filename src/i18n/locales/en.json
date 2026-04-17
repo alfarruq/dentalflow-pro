@@ -158,7 +158,28 @@
     "call": "Call",
     "delete": "Delete",
     "toggleComplete": "Mark as completed",
-    "addFromProfile": "Add reminder"
+    "addFromProfile": "Add reminder",
+    "doctor": "Doctor"
+  },
+  "doctors": {
+    "title": "Doctors",
+    "subtitle": "Manage clinic doctors",
+    "allDoctors": "All",
+    "addDoctor": "New doctor",
+    "editDoctor": "Edit doctor",
+    "name": "Name",
+    "specialty": "Specialty",
+    "phone": "Phone",
+    "email": "Email",
+    "color": "Color",
+    "selectDoctor": "Select doctor",
+    "active": "Active",
+    "inactive": "Inactive",
+    "delete": "Delete",
+    "restore": "Restore",
+    "doctorAdded": "Doctor added",
+    "doctorUpdated": "Doctor updated",
+    "doctorDeleted": "Doctor deleted"
   },
   "inventory": {
     "title": "Inventory",
@@ -193,7 +214,23 @@
     "unit_pachka": "pack",
     "unit_quti": "box",
     "unit_juft": "pair",
-    "unitPrice": "Unit Price"
+    "unitPrice": "Unit Price",
+    "useItem": "Consume",
+    "useItemTitle": "Record Usage",
+    "useItemDesc": "Enter the doctor and quantity used",
+    "usageLog": "Usage Log",
+    "usageLogEmpty": "No usage recorded yet",
+    "usedQty": "Quantity",
+    "usedBy": "Doctor",
+    "usedAt": "Date",
+    "usageNote": "Note",
+    "usageNotePlaceholder": "E.g. implant surgery...",
+    "totalCost": "Total Cost",
+    "stockItems": "Stock",
+    "qtyRequired": "Enter quantity",
+    "doctorRequired": "Select a doctor",
+    "notEnoughStock": "Not enough stock",
+    "usageAdded": "Usage recorded"
   },
   "dentalChart": {
     "title": "Dental Chart",
@@ -231,7 +268,20 @@
     "svc_implant": "Implant",
     "svc_whitening": "Whitening",
     "svc_crown": "Crown Installation",
-    "customRange": "Custom Range"
+    "customRange": "Custom Range",
+    "doctorPerformance": "Doctor Performance",
+    "doctorPerformanceDesc": "Each doctor's metrics for the selected period",
+    "dpAppointments": "Appointments",
+    "dpRevenue": "Revenue",
+    "dpMaterialCost": "Materials",
+    "dpNet": "Net Profit",
+    "dpCompleted": "Completed",
+    "dpCancelled": "Cancelled",
+    "dpNoData": "No data for this period",
+    "dpBestDoctor": "Top Doctor",
+    "dpCompare": "Comparative Analysis",
+    "dpAppointmentsChart": "Appointments by Doctor",
+    "dpRevenueChart": "Revenue by Doctor"
   },
   "profile": {
     "title": "Profile",
@@ -372,6 +422,14 @@
     "inc_oqartirish": "Whitening",
     "inc_toj": "Crown",
     "inc_boshqa_daromad": "Other Income",
-    "dashboardUpcoming": "Upcoming Payments"
+    "dashboardUpcoming": "Upcoming Payments",
+    "doctorReport": "Doctor Report",
+    "doctorReportDesc": "Revenue and costs per doctor",
+    "drIncome": "Revenue",
+    "drMaterialCost": "Materials",
+    "drDirectExpense": "Direct Expenses",
+    "drNet": "Net Profit",
+    "drNoData": "No data for this doctor",
+    "assignedDoctor": "Doctor (optional)"
   }
 }

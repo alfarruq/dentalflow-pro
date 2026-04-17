@@ -17,6 +17,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { mockAppointments, Appointment, AppointmentStatus } from "@/data/mockAppointments";
 import { mockPatients } from "@/data/mockPatients";
+import { useDoctors } from "@/contexts/DoctorsContext";
+import { DoctorFilterChips } from "@/components/DoctorFilterChips";
+import { DoctorBadge } from "@/components/DoctorBadge";
+import { DoctorSelect } from "@/components/DoctorSelect";
 import { useToast } from "@/hooks/use-toast";
 
 const statusColors: Record<AppointmentStatus, string> = {
@@ -51,6 +55,7 @@ const VIEW_MODE_KEY = "dentaflow-appointments-view";
 export default function Appointments() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { filterDoctorId, setLastUsedDoctorId } = useDoctors();
   const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
   const [view, setView] = useState("today");
   const [search, setSearch] = useState("");
@@ -63,6 +68,7 @@ export default function Appointments() {
   const [aptTime, setAptTime] = useState("09:00");
   const [aptTreatment, setAptTreatment] = useState("cleaning");
   const [aptNotes, setAptNotes] = useState("");
+  const [aptDoctorId, setAptDoctorId] = useState("");
   const [patientSearch, setPatientSearch] = useState("");
 
   // View mode: list or grid
@@ -78,8 +84,21 @@ export default function Appointments() {
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
 
+  const doctorScopedAppointments = useMemo(
+    () => (filterDoctorId ? appointments.filter((a) => a.assignedDoctorId === filterDoctorId) : appointments),
+    [appointments, filterDoctorId]
+  );
+
+  const doctorCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    appointments.forEach((a) => {
+      map[a.assignedDoctorId] = (map[a.assignedDoctorId] ?? 0) + 1;
+    });
+    return map;
+  }, [appointments]);
+
   const filteredAppointments = useMemo(() => {
-    let filtered = [...appointments];
+    let filtered = [...doctorScopedAppointments];
     const now = new Date();
     if (view === "today") {
       filtered = filtered.filter((a) => a.date === todayStr);
@@ -98,7 +117,7 @@ export default function Appointments() {
       filtered = filtered.filter((a) => a.patientName.toLowerCase().includes(q));
     }
     return filtered.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-  }, [appointments, view, search, todayStr]);
+  }, [doctorScopedAppointments, view, search, todayStr]);
 
   const filteredPatients = useMemo(() => {
     if (!patientSearch.trim()) return mockPatients.slice(0, 10);
@@ -115,6 +134,7 @@ export default function Appointments() {
     setAptTime("09:00");
     setAptTreatment("cleaning");
     setAptNotes("");
+    setAptDoctorId("");
     setPatientSearch("");
   };
 
@@ -134,7 +154,7 @@ export default function Appointments() {
       phone = newPhone;
       patientId = `new-${Date.now()}`;
     }
-    if (!aptDate) return;
+    if (!aptDate || !aptDoctorId) return;
     const newApt: Appointment = {
       id: `apt-${Date.now()}`,
       patientId,
@@ -145,8 +165,10 @@ export default function Appointments() {
       treatmentType: aptTreatment as any,
       status: "pending",
       notes: aptNotes,
+      assignedDoctorId: aptDoctorId,
     };
     setAppointments((prev) => [...prev, newApt].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+    setLastUsedDoctorId(aptDoctorId);
     setDialogOpen(false);
     resetForm();
     toast({ title: t("appointments.appointmentAdded") });
@@ -214,6 +236,8 @@ export default function Appointments() {
         </div>
       </div>
 
+      <DoctorFilterChips counts={doctorCounts} totalCount={appointments.length} />
+
       {viewMode === "list" ? (
         <>
           {/* List View */}
@@ -256,9 +280,10 @@ export default function Appointments() {
                             <span className="font-mono font-medium text-sm">{apt.time}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <User className="h-3.5 w-3.5 text-muted-foreground" />
                               <span className="font-medium text-sm truncate">{apt.patientName}</span>
+                              <DoctorBadge doctorId={apt.assignedDoctorId} variant="compact" />
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {t(`patients.${apt.treatmentType}`)}
@@ -363,6 +388,7 @@ export default function Appointments() {
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", treatmentDotColor[apt.treatmentType])} />
                           <span className="font-mono font-semibold text-primary">{apt.time}</span>
+                          <DoctorBadge doctorId={apt.assignedDoctorId} variant="dot" className="ml-auto" />
                         </div>
                         <p className="font-semibold text-foreground truncate leading-tight">{apt.patientName}</p>
                         <p className="text-muted-foreground truncate leading-tight mt-0.5">
@@ -447,6 +473,12 @@ export default function Appointments() {
                 </SelectContent>
               </Select>
             </div>
+            <DoctorSelect
+              value={aptDoctorId}
+              onChange={setAptDoctorId}
+              label={t("reminders.doctor")}
+              required
+            />
             <div className="space-y-1">
               <Label>{t("appointments.notes")}</Label>
               <Textarea value={aptNotes} onChange={(e) => setAptNotes(e.target.value)} rows={2} />

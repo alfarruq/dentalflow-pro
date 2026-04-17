@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { mockPatients, getRemainingBalance, type Patient } from "@/data/mockPatients";
+import { DoctorBadge } from "@/components/DoctorBadge";
 import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
@@ -48,8 +49,9 @@ function PatientHeader({ patient, t, onAddReminder }: { patient: Patient; t: (k:
                   <Phone className="h-3.5 w-3.5" />{patient.phone}
                 </a>
               </div>
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge className={statusColors[patient.status]}>{t(`patients.${patient.status}`)}</Badge>
+                <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
               </div>
             </div>
           </div>
@@ -363,9 +365,12 @@ export default function PatientProfile() {
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">{record.note}</p>
-                        <div className="mt-2 flex items-center gap-1 text-sm font-medium">
-                          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
-                          {fmt(record.cost)} {t("common.currency")}
+                        <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1 text-sm font-medium">
+                            <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                            {fmt(record.cost)} {t("common.currency")}
+                          </div>
+                          <DoctorBadge doctorId={record.assignedDoctorId} variant="compact" />
                         </div>
                       </div>
                     </div>

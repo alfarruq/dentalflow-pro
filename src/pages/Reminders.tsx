@@ -12,8 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useReminders } from "@/contexts/RemindersContext";
+import { useDoctors } from "@/contexts/DoctorsContext";
 import { Reminder, ReminderPriority } from "@/data/mockReminders";
 import { AddReminderDialog } from "@/components/AddReminderDialog";
+import { DoctorFilterChips } from "@/components/DoctorFilterChips";
+import { DoctorBadge } from "@/components/DoctorBadge";
 
 const priorityColors: Record<ReminderPriority, string> = {
   low: "bg-slate-100 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300",
@@ -33,16 +36,31 @@ export default function Reminders() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { reminders, toggleReminder, deleteReminder } = useReminders();
+  const { filterDoctorId } = useDoctors();
 
   const [view, setView] = useState<FilterView>("today");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const doctorScoped = useMemo(
+    () => (filterDoctorId ? reminders.filter((r) => r.assignedDoctorId === filterDoctorId) : reminders),
+    [reminders, filterDoctorId]
+  );
+
+  const doctorCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    reminders.forEach((r) => {
+      if (r.completed) return;
+      map[r.assignedDoctorId] = (map[r.assignedDoctorId] ?? 0) + 1;
+    });
+    return map;
+  }, [reminders]);
+
   const counts = useMemo(() => {
     const now = new Date();
     const weekEnd = addDays(now, 7);
     let today = 0, tomorrow = 0, week = 0, overdue = 0, completed = 0;
-    reminders.forEach((r) => {
+    doctorScoped.forEach((r) => {
       const d = parseISO(r.dueDate);
       if (r.completed) {
         completed++;
@@ -53,12 +71,12 @@ export default function Reminders() {
       if (isWithinInterval(d, { start: startOfDay(now), end: weekEnd })) week++;
       if (isPast(d) && !isToday(d)) overdue++;
     });
-    return { today, tomorrow, week, overdue, completed, all: reminders.length };
-  }, [reminders]);
+    return { today, tomorrow, week, overdue, completed, all: doctorScoped.length };
+  }, [doctorScoped]);
 
   const filtered = useMemo(() => {
     const now = new Date();
-    let list = [...reminders];
+    let list = [...doctorScoped];
 
     if (view === "today") list = list.filter((r) => !r.completed && isToday(parseISO(r.dueDate)));
     else if (view === "tomorrow") list = list.filter((r) => !r.completed && isTomorrow(parseISO(r.dueDate)));
@@ -85,7 +103,7 @@ export default function Reminders() {
     }
 
     return list.sort((a, b) => `${a.dueDate} ${a.dueTime}`.localeCompare(`${b.dueDate} ${b.dueTime}`));
-  }, [reminders, view, search]);
+  }, [doctorScoped, view, search]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, Reminder[]> = {};
@@ -173,6 +191,8 @@ export default function Reminders() {
         </Card>
       </div>
 
+      <DoctorFilterChips counts={doctorCounts} totalCount={reminders.filter((r) => !r.completed).length} />
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <Tabs value={view} onValueChange={(v) => setView(v as FilterView)} className="w-full sm:w-auto">
@@ -251,6 +271,7 @@ export default function Reminders() {
                             <p className={cn("font-medium text-sm truncate", r.completed && "line-through")}>
                               {r.title}
                             </p>
+                            <DoctorBadge doctorId={r.assignedDoctorId} variant="compact" />
                             {overdue && (
                               <Badge className="bg-destructive/15 text-destructive text-[10px] border-0 px-1.5 py-0">
                                 {t("reminders.overdue")}

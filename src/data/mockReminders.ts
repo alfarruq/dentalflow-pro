@@ -1,4 +1,5 @@
 import { mockPatients } from "./mockPatients";
+import { mockDoctors } from "./mockDoctors";
 
 export type ReminderPriority = "low" | "normal" | "high";
 
@@ -14,6 +15,7 @@ export interface Reminder {
   priority: ReminderPriority;
   completed: boolean;
   createdAt: string;
+  assignedDoctorId: string;
 }
 
 function pad(n: number) {
@@ -59,12 +61,15 @@ export function generateMockReminders(): Reminder[] {
   const now = new Date();
   const sample = mockPatients.slice(0, 20);
 
+  const activeDocs = mockDoctors.filter((d) => d.isActive);
+
   sample.forEach((patient, idx) => {
     const offsetDays = Math.floor(rng() * 14) - 2;
     const due = new Date(now);
     due.setDate(now.getDate() + offsetDays);
     const hour = 9 + Math.floor(rng() * 9);
     const minute = Math.floor(rng() * 2) * 30;
+    const doctor = activeDocs[Math.floor(rng() * activeDocs.length)];
     reminders.push({
       id: `rem-${idx}-${patient.id}`,
       patientId: patient.id,
@@ -77,6 +82,7 @@ export function generateMockReminders(): Reminder[] {
       priority: priorities[Math.floor(rng() * priorities.length)],
       completed: rng() < 0.2 && offsetDays < 0,
       createdAt: formatDate(new Date(now.getTime() - Math.floor(rng() * 10) * 86400000)),
+      assignedDoctorId: doctor.id,
     });
   });
 

@@ -32,6 +32,11 @@ import {
   expenseCategories, incomeCategories,
   type Expense, type ExpenseCategory, type Income, type IncomeCategory, type RecurringExpense,
 } from "@/data/mockFinance";
+import { useDoctors } from "@/contexts/DoctorsContext";
+import { useInventory } from "@/contexts/InventoryContext";
+import { DoctorFilterChips } from "@/components/DoctorFilterChips";
+import { DoctorBadge } from "@/components/DoctorBadge";
+import { DoctorSelect } from "@/components/DoctorSelect";
 
 const categoryColors: Record<ExpenseCategory, string> = {
   ish_haqi: "hsl(var(--chart-1))",
@@ -65,13 +70,96 @@ const formatUZS = (v: number) => v.toLocaleString("uz-UZ") + " so'm";
 type TimeFilter = "today" | "week" | "month" | "year" | "custom";
 type TransactionType = "all" | "income" | "expense";
 
-const emptyExpenseForm = { description: "", category: "materiallar" as ExpenseCategory, amount: 0 };
-const emptyIncomeForm = { description: "", category: "plomba" as IncomeCategory, amount: 0, patientName: "" };
+const emptyExpenseForm = { description: "", category: "materiallar" as ExpenseCategory, amount: 0, assignedDoctorId: "" };
+const emptyIncomeForm = { description: "", category: "plomba" as IncomeCategory, amount: 0, patientName: "", assignedDoctorId: "" };
 const emptyRecurringForm = { description: "", category: "ijara" as ExpenseCategory, amount: 0, dayOfMonth: 1 };
+
+// ── Doctor Report Tab ──────────────────────────────────────────────────────
+import { Doctor } from "@/data/mockDoctors";
+import { InventoryUsage } from "@/data/mockInventory";
+import { doctorColorMap } from "@/data/mockDoctors";
+
+interface DoctorReportTabProps {
+  incomes: Income[];
+  expenses: Expense[];
+  usages: InventoryUsage[];
+  activeDoctors: Doctor[];
+  t: (key: string) => string;
+  formatUZS: (v: number) => string;
+}
+
+function DoctorReportTab({ incomes, expenses, usages, activeDoctors, t, formatUZS }: DoctorReportTabProps) {
+  const rows = activeDoctors.map((doc) => {
+    const income = incomes.filter((i) => i.assignedDoctorId === doc.id).reduce((s, i) => s + i.amount, 0);
+    const materialCost = usages.filter((u) => u.usedByDoctorId === doc.id).reduce((s, u) => s + u.quantity * u.unitPrice, 0);
+    const directExp = expenses.filter((e) => e.assignedDoctorId === doc.id).reduce((s, e) => s + e.amount, 0);
+    const net = income - materialCost - directExp;
+    const palette = doctorColorMap[doc.color];
+    return { doc, income, materialCost, directExp, net, palette };
+  });
+
+  if (rows.length === 0) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-16 text-muted-foreground">
+          {t("finance.drNoData")}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">{t("finance.doctorReportDesc")}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(({ doc, income, materialCost, directExp, net, palette }) => (
+          <Card key={doc.id} className="overflow-hidden">
+            <div className={cn("h-1.5 w-full", palette.dot.replace("bg-", "bg-"))} />
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className={cn("h-10 w-10 rounded-full flex items-center justify-center shrink-0", palette.bgSoft)}>
+                  <span className={cn("h-2.5 w-2.5 rounded-full", palette.dot)} />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{doc.name}</p>
+                  <p className="text-xs text-muted-foreground">{doc.specialty}</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("finance.drIncome")}</span>
+                  <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">+{formatUZS(income)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">{t("finance.drMaterialCost")}</span>
+                  <span className="tabular-nums text-red-500">−{formatUZS(materialCost)}</span>
+                </div>
+                {directExp > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{t("finance.drDirectExpense")}</span>
+                    <span className="tabular-nums text-red-500">−{formatUZS(directExp)}</span>
+                  </div>
+                )}
+                <div className="border-t border-border/50 pt-2 flex justify-between items-center">
+                  <span className="font-medium">{t("finance.drNet")}</span>
+                  <span className={cn("font-bold tabular-nums", net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive")}>
+                    {net >= 0 ? "+" : "−"}{formatUZS(Math.abs(net))}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Finance() {
   const { t } = useTranslation();
   const today = new Date();
+  const { filterDoctorId, activeDoctors } = useDoctors();
+  const { usages } = useInventory();
 
   const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
   const [incomes, setIncomes] = useState<Income[]>(mockIncomes);
@@ -123,8 +211,19 @@ export default function Finance() {
     return !isBefore(d, dateRange.start) && !isAfter(d, dateRange.end);
   };
 
-  const filteredExpenses = useMemo(() => expenses.filter((e) => inRange(e.date)), [expenses, dateRange]);
-  const filteredIncomes = useMemo(() => incomes.filter((i) => inRange(i.date)), [incomes, dateRange]);
+  const filteredExpenses = useMemo(() =>
+    expenses.filter((e) =>
+      inRange(e.date) &&
+      (!filterDoctorId || !e.assignedDoctorId || e.assignedDoctorId === filterDoctorId)
+    ),
+  [expenses, dateRange, filterDoctorId]); // eslint-disable-line
+
+  const filteredIncomes = useMemo(() =>
+    incomes.filter((i) =>
+      inRange(i.date) &&
+      (!filterDoctorId || !i.assignedDoctorId || i.assignedDoctorId === filterDoctorId)
+    ),
+  [incomes, dateRange, filterDoctorId]); // eslint-disable-line
 
   const totalIncome = useMemo(() => filteredIncomes.reduce((s, i) => s + i.amount, 0), [filteredIncomes]);
   const totalExpenses = useMemo(() => filteredExpenses.reduce((s, e) => s + e.amount, 0), [filteredExpenses]);
@@ -172,14 +271,19 @@ export default function Finance() {
 
   // Expense CRUD
   const openAddExp = () => { setEditingExp(null); setExpForm(emptyExpenseForm); setExpModalOpen(true); };
-  const openEditExp = (e: Expense) => { setEditingExp(e); setExpForm({ description: e.description, category: e.category, amount: e.amount }); setExpModalOpen(true); };
+  const openEditExp = (e: Expense) => {
+    setEditingExp(e);
+    setExpForm({ description: e.description, category: e.category, amount: e.amount, assignedDoctorId: e.assignedDoctorId || "" });
+    setExpModalOpen(true);
+  };
   const saveExp = () => {
     if (!expForm.description.trim() || expForm.amount <= 0) return;
+    const doctorId = expForm.assignedDoctorId || undefined;
     if (editingExp) {
-      setExpenses((prev) => prev.map((e) => e.id === editingExp.id ? { ...e, ...expForm, description: expForm.description.trim() } : e));
+      setExpenses((prev) => prev.map((e) => e.id === editingExp.id ? { ...e, ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId } : e));
       toast.success(t("finance.expenseUpdated"));
     } else {
-      const newExp: Expense = { id: `exp-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...expForm, description: expForm.description.trim() };
+      const newExp: Expense = { id: `exp-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId };
       setExpenses((prev) => [newExp, ...prev]);
       toast.success(t("finance.expenseAdded"));
     }
@@ -196,11 +300,12 @@ export default function Finance() {
   const openAddInc = () => { setEditingInc(null); setIncForm(emptyIncomeForm); setIncModalOpen(true); };
   const saveInc = () => {
     if (!incForm.description.trim() || incForm.amount <= 0) return;
+    const doctorId = incForm.assignedDoctorId || undefined;
     if (editingInc) {
-      setIncomes((prev) => prev.map((i) => i.id === editingInc.id ? { ...i, ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined } : i));
+      setIncomes((prev) => prev.map((i) => i.id === editingInc.id ? { ...i, ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId } : i));
       toast.success(t("finance.incomeUpdated"));
     } else {
-      const newInc: Income = { id: `inc-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined };
+      const newInc: Income = { id: `inc-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId };
       setIncomes((prev) => [newInc, ...prev]);
       toast.success(t("finance.incomeAdded"));
     }
@@ -395,6 +500,9 @@ export default function Finance() {
         </Card>
       )}
 
+      {/* Doctor filter chips */}
+      <DoctorFilterChips />
+
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-secondary/60 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
@@ -406,6 +514,9 @@ export default function Finance() {
           </TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-xl text-[12px] sm:text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-3 sm:px-6 flex-1 sm:flex-none">
             {t("finance.breakdown")}
+          </TabsTrigger>
+          <TabsTrigger value="doctor_report" className="rounded-xl text-[12px] sm:text-[13px] data-[state=active]:bg-card data-[state=active]:shadow-sm px-3 sm:px-6 flex-1 sm:flex-none">
+            {t("finance.doctorReport")}
           </TabsTrigger>
         </TabsList>
 
@@ -463,14 +574,15 @@ export default function Finance() {
                         </TableCell>
                         <TableCell className="text-[13px] text-muted-foreground">{tx.date}</TableCell>
                         <TableCell>
-                          <div>
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-[13px]">{tx.description}</span>
-                            {tx.patientName && (
-                              <p className="text-[12px] text-muted-foreground">{tx.patientName}</p>
+                            <DoctorBadge doctorId={(tx as any).assignedDoctorId} variant="compact" />
+                            {tx.isAutomatic && (
+                              <Badge variant="secondary" className="text-[10px]">{t("finance.auto")}</Badge>
                             )}
                           </div>
-                          {tx.isAutomatic && (
-                            <Badge variant="secondary" className="ml-2 text-[10px]">{t("finance.auto")}</Badge>
+                          {tx.patientName && (
+                            <p className="text-[12px] text-muted-foreground">{tx.patientName}</p>
                           )}
                         </TableCell>
                         <TableCell>
@@ -659,6 +771,18 @@ export default function Finance() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* Doctor Report Tab */}
+        <TabsContent value="doctor_report" className="mt-6">
+          <DoctorReportTab
+            incomes={filteredIncomes}
+            expenses={filteredExpenses}
+            usages={usages.filter((u) => inRange(u.usedAt))}
+            activeDoctors={activeDoctors}
+            t={t}
+            formatUZS={formatUZS}
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Expense Dialog */}
@@ -690,6 +814,12 @@ export default function Finance() {
                 <Input type="number" min={0} value={expForm.amount} onChange={(e) => setExpForm({ ...expForm, amount: Number(e.target.value) })} />
               </div>
             </div>
+            <DoctorSelect
+              value={expForm.assignedDoctorId}
+              onChange={(v) => setExpForm({ ...expForm, assignedDoctorId: v })}
+              label={t("finance.assignedDoctor")}
+              hideIfSingle={false}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setExpModalOpen(false)}>{t("patients.cancel")}</Button>
@@ -731,6 +861,12 @@ export default function Finance() {
                 <Input type="number" min={0} value={incForm.amount} onChange={(e) => setIncForm({ ...incForm, amount: Number(e.target.value) })} />
               </div>
             </div>
+            <DoctorSelect
+              value={incForm.assignedDoctorId}
+              onChange={(v) => setIncForm({ ...incForm, assignedDoctorId: v })}
+              label={t("finance.assignedDoctor")}
+              hideIfSingle={false}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIncModalOpen(false)}>{t("patients.cancel")}</Button>

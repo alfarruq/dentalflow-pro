@@ -158,7 +158,28 @@
     "call": "Позвонить",
     "delete": "Удалить",
     "toggleComplete": "Отметить выполненным",
-    "addFromProfile": "Добавить напоминание"
+    "addFromProfile": "Добавить напоминание",
+    "doctor": "Врач"
+  },
+  "doctors": {
+    "title": "Врачи",
+    "subtitle": "Управление врачами клиники",
+    "allDoctors": "Все",
+    "addDoctor": "Новый врач",
+    "editDoctor": "Редактировать врача",
+    "name": "Имя",
+    "specialty": "Специальность",
+    "phone": "Телефон",
+    "email": "Email",
+    "color": "Цвет",
+    "selectDoctor": "Выберите врача",
+    "active": "Активен",
+    "inactive": "Неактивен",
+    "delete": "Удалить",
+    "restore": "Восстановить",
+    "doctorAdded": "Врач добавлен",
+    "doctorUpdated": "Врач обновлён",
+    "doctorDeleted": "Врач удалён"
   },
   "inventory": {
     "title": "Склад",
@@ -193,7 +214,23 @@
     "unit_pachka": "уп",
     "unit_quti": "кор",
     "unit_juft": "пара",
-    "unitPrice": "Цена за единицу"
+    "unitPrice": "Цена за единицу",
+    "useItem": "Списать",
+    "useItemTitle": "Списание материала",
+    "useItemDesc": "Укажите врача и количество",
+    "usageLog": "Журнал расхода",
+    "usageLogEmpty": "Расходов ещё не было",
+    "usedQty": "Количество",
+    "usedBy": "Врач",
+    "usedAt": "Дата",
+    "usageNote": "Примечание",
+    "usageNotePlaceholder": "Например: имплантация...",
+    "totalCost": "Итого расход",
+    "stockItems": "Товары",
+    "qtyRequired": "Введите количество",
+    "doctorRequired": "Выберите врача",
+    "notEnoughStock": "Недостаточно товара на складе",
+    "usageAdded": "Расход зафиксирован"
   },
   "dentalChart": {
     "title": "Зубная карта",
@@ -231,7 +268,20 @@
     "svc_implant": "Имплант",
     "svc_whitening": "Отбеливание",
     "svc_crown": "Установка коронки",
-    "customRange": "Выбрать период"
+    "customRange": "Выбрать период",
+    "doctorPerformance": "Эффективность врачей",
+    "doctorPerformanceDesc": "Показатели каждого врача за выбранный период",
+    "dpAppointments": "Приёмы",
+    "dpRevenue": "Доход",
+    "dpMaterialCost": "Материалы",
+    "dpNet": "Чистая прибыль",
+    "dpCompleted": "Выполнено",
+    "dpCancelled": "Отменено",
+    "dpNoData": "Нет данных за этот период",
+    "dpBestDoctor": "Лучший врач",
+    "dpCompare": "Сравнительный анализ",
+    "dpAppointmentsChart": "Количество приёмов (по врачам)",
+    "dpRevenueChart": "Доход (по врачам)"
   },
   "profile": {
     "title": "Профиль",
@@ -372,6 +422,14 @@
     "inc_oqartirish": "Отбеливание",
     "inc_toj": "Коронка",
     "inc_boshqa_daromad": "Прочий доход",
-    "dashboardUpcoming": "Предстоящие платежи"
+    "dashboardUpcoming": "Предстоящие платежи",
+    "doctorReport": "Отчёт по врачам",
+    "doctorReportDesc": "Доходы и расходы по каждому врачу",
+    "drIncome": "Доход",
+    "drMaterialCost": "Материалы",
+    "drDirectExpense": "Прямые расходы",
+    "drNet": "Чистая прибыль",
+    "drNoData": "Нет данных по этому врачу",
+    "assignedDoctor": "Врач (необязательно)"
   }
 }

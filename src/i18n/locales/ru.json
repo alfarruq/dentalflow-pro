@@ -435,5 +435,25 @@
     "drNet": "Чистая прибыль",
     "drNoData": "Нет данных по этому врачу",
     "assignedDoctor": "Врач (необязательно)"
+  },
+  "treatments": {
+    "title": "Лечения",
+    "newTreatment": "Новое лечение",
+    "addFirst": "Добавить первое лечение",
+    "noTreatments": "Нет лечений",
+    "treatmentAdded": "Лечение добавлено",
+    "treatmentCompleted": "Лечение завершено",
+    "visitAdded": "Визит добавлен",
+    "paymentRecorded": "Оплата принята",
+    "addVisit": "Добавить визит",
+    "markCompleted": "Завершить лечение",
+    "completedVisits": "Выполненные визиты",
+    "visitNumber": "Визит #",
+    "startDate": "Дата начала",
+    "plannedVisitsCount": "Количество запланированных визитов",
+    "method": "Способ оплаты",
+    "cash": "Наличные",
+    "card": "Карта",
+    "transfer": "Перевод"
   }
 }

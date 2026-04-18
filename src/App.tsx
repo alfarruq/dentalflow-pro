@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DoctorsProvider } from "@/contexts/DoctorsContext";
 import { RemindersProvider } from "@/contexts/RemindersContext";
 import { InventoryProvider } from "@/contexts/InventoryContext";
+import { TreatmentProvider } from "@/contexts/TreatmentContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -32,6 +33,7 @@ const App = () => (
         <AuthProvider>
           <DoctorsProvider>
           <InventoryProvider>
+          <TreatmentProvider>
           <RemindersProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -58,6 +60,7 @@ const App = () => (
               />
             </Routes>
           </RemindersProvider>
+          </TreatmentProvider>
           </InventoryProvider>
           </DoctorsProvider>
         </AuthProvider>

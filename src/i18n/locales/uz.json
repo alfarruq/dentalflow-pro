@@ -435,5 +435,25 @@
     "drNet": "Sof foyda",
     "drNoData": "Bu doktor uchun ma'lumot yo'q",
     "assignedDoctor": "Doktor (ixtiyoriy)"
+  },
+  "treatments": {
+    "title": "Muolajalar",
+    "newTreatment": "Yangi muolaja",
+    "addFirst": "Birinchi muolajani qo'shing",
+    "noTreatments": "Muolajalar mavjud emas",
+    "treatmentAdded": "Muolaja qo'shildi",
+    "treatmentCompleted": "Muolaja yakunlandi",
+    "visitAdded": "Tashrif qo'shildi",
+    "paymentRecorded": "To'lov qabul qilindi",
+    "addVisit": "Tashrif qo'shish",
+    "markCompleted": "Muolajani yakunlash",
+    "completedVisits": "Bajarilgan tashriflar",
+    "visitNumber": "Tashrif #",
+    "startDate": "Boshlanish sanasi",
+    "plannedVisitsCount": "Rejalashtirilgan tashriflar soni",
+    "method": "To'lov usuli",
+    "cash": "Naqd",
+    "card": "Karta",
+    "transfer": "O'tkazma"
   }
 }

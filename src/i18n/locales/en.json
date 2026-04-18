@@ -435,5 +435,25 @@
     "drNet": "Net Profit",
     "drNoData": "No data for this doctor",
     "assignedDoctor": "Doctor (optional)"
+  },
+  "treatments": {
+    "title": "Treatments",
+    "newTreatment": "New Treatment",
+    "addFirst": "Add first treatment",
+    "noTreatments": "No treatments yet",
+    "treatmentAdded": "Treatment added",
+    "treatmentCompleted": "Treatment completed",
+    "visitAdded": "Visit added",
+    "paymentRecorded": "Payment recorded",
+    "addVisit": "Add Visit",
+    "markCompleted": "Mark as Completed",
+    "completedVisits": "Completed visits",
+    "visitNumber": "Visit #",
+    "startDate": "Start date",
+    "plannedVisitsCount": "Number of planned visits",
+    "method": "Payment method",
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
   }
 }

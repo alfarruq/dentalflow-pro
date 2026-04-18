@@ -11,6 +11,8 @@ interface UseItemParams {
   quantity: number;
   usedByDoctorId: string;
   note?: string;
+  visitId?: string;
+  treatmentId?: string;
 }
 
 interface InventoryContextType {
@@ -56,7 +58,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const useItem = useCallback(({ itemId, quantity, usedByDoctorId, note = "" }: UseItemParams) => {
+  const useItem = useCallback(({ itemId, quantity, usedByDoctorId, note = "", visitId, treatmentId }: UseItemParams) => {
     setItems((prev) =>
       prev.map((i) =>
         i.id === itemId ? { ...i, quantity: Math.max(0, i.quantity - quantity) } : i
@@ -76,6 +78,8 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         usedByDoctorId,
         usedAt: todayStr(),
         note,
+        ...(visitId ? { visitId } : {}),
+        ...(treatmentId ? { treatmentId } : {}),
       };
       return [entry, ...prev];
     });

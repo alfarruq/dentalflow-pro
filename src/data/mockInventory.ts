@@ -20,6 +20,8 @@ export interface InventoryUsage {
   usedByDoctorId: string;
   usedAt: string; // "yyyy-MM-dd"
   note: string;
+  visitId?: string;      // linked visit (optional)
+  treatmentId?: string;  // linked treatment (optional)
 }
 
 export const mockInventory: InventoryItem[] = [

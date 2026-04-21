@@ -1,5 +1,7 @@
 import { mockPatients } from "./mockPatients";
 import { mockDoctors } from "./mockDoctors";
+import type { ServiceMaterial } from "./mockServiceTemplates";
+export type { ServiceMaterial };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,8 @@ export interface Treatment {
   endDate?: string;
   plannedVisits: number;
   notes: string;
+  templateId?: string;                  // FK → ServiceTemplate.id
+  plannedMaterials?: ServiceMaterial[]; // copied from template at creation
 }
 
 /**

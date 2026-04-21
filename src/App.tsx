@@ -8,6 +8,8 @@ import { DoctorsProvider } from "@/contexts/DoctorsContext";
 import { RemindersProvider } from "@/contexts/RemindersContext";
 import { InventoryProvider } from "@/contexts/InventoryContext";
 import { TreatmentProvider } from "@/contexts/TreatmentContext";
+import { ServiceTemplatesProvider } from "@/contexts/ServiceTemplatesContext";
+import { FinanceProvider } from "@/contexts/FinanceContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -34,6 +36,8 @@ const App = () => (
           <DoctorsProvider>
           <InventoryProvider>
           <TreatmentProvider>
+          <ServiceTemplatesProvider>
+          <FinanceProvider>
           <RemindersProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -60,6 +64,8 @@ const App = () => (
               />
             </Routes>
           </RemindersProvider>
+          </FinanceProvider>
+          </ServiceTemplatesProvider>
           </TreatmentProvider>
           </InventoryProvider>
           </DoctorsProvider>

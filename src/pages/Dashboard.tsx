@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO, isToday, isPast } from "date-fns";
-import { uz } from "date-fns/locale";
+import { parseISO, isToday, isPast } from "date-fns";
 import {
   Users, CalendarDays, Bell, UserPlus, CalendarPlus, Banknote,
   Clock, AlertCircle, TrendingDown, Package, ChevronRight, CheckCircle2,
@@ -13,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
 import { useReminders } from "@/contexts/RemindersContext";
 import { getTodayAppointments } from "@/data/mockAppointments";
 import { mockPatients, getRemainingBalance } from "@/data/mockPatients";
@@ -105,7 +103,6 @@ function KpiCard({ label, value, sub, icon: Icon, tone = "neutral" }: KpiCardPro
 export default function Dashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { reminders } = useReminders();
   const [reminderOpen, setReminderOpen] = useState(false);
 
@@ -157,20 +154,10 @@ export default function Dashboard() {
     });
   }, [today]);
 
-  const firstName = user?.name?.replace(/^Dr\.?\s*/i, "") ?? "";
+
 
   return (
     <div className="space-y-5 sm:space-y-6 max-w-6xl">
-      {/* Greeting */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-          {t("dashboard.greeting", { name: firstName })}
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5 capitalize">
-          {format(today, "EEEE, dd MMMM yyyy", { locale: uz })}
-        </p>
-      </div>
-
       {/* Quick Actions */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <QuickAction

@@ -28,10 +28,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  mockExpenses, mockIncomes, mockRecurringExpenses,
   expenseCategories, incomeCategories,
   type Expense, type ExpenseCategory, type Income, type IncomeCategory, type RecurringExpense,
 } from "@/data/mockFinance";
+import { useFinance } from "@/contexts/FinanceContext";
 import { useDoctors } from "@/contexts/DoctorsContext";
 import { useInventory } from "@/contexts/InventoryContext";
 import { DoctorFilterChips } from "@/components/DoctorFilterChips";
@@ -160,10 +160,13 @@ export default function Finance() {
   const today = new Date();
   const { filterDoctorId, activeDoctors } = useDoctors();
   const { usages } = useInventory();
-
-  const [expenses, setExpenses] = useState<Expense[]>(mockExpenses);
-  const [incomes, setIncomes] = useState<Income[]>(mockIncomes);
-  const [recurring, setRecurring] = useState<RecurringExpense[]>(mockRecurringExpenses);
+  const {
+    incomes, expenses, recurring,
+    addIncome, updateIncome,
+    addExpense, updateExpense, deleteExpense,
+    addRecurring, updateRecurring, deleteRecurring,
+    toggleRecurringActive,
+  } = useFinance();
   const [activeTab, setActiveTab] = useState("transactions");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("month");
   const [txFilter, setTxFilter] = useState<TransactionType>("all");
@@ -280,18 +283,17 @@ export default function Finance() {
     if (!expForm.description.trim() || expForm.amount <= 0) return;
     const doctorId = expForm.assignedDoctorId || undefined;
     if (editingExp) {
-      setExpenses((prev) => prev.map((e) => e.id === editingExp.id ? { ...e, ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId } : e));
+      updateExpense(editingExp.id, { ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId });
       toast.success(t("finance.expenseUpdated"));
     } else {
-      const newExp: Expense = { id: `exp-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId };
-      setExpenses((prev) => [newExp, ...prev]);
+      addExpense({ date: format(today, "yyyy-MM-dd"), ...expForm, description: expForm.description.trim(), assignedDoctorId: doctorId });
       toast.success(t("finance.expenseAdded"));
     }
     setExpModalOpen(false);
   };
   const deleteExp = () => {
     if (!deleteExpTarget) return;
-    setExpenses((prev) => prev.filter((e) => e.id !== deleteExpTarget.id));
+    deleteExpense(deleteExpTarget.id);
     setDeleteExpTarget(null);
     toast.success(t("finance.expenseDeleted"));
   };
@@ -302,11 +304,10 @@ export default function Finance() {
     if (!incForm.description.trim() || incForm.amount <= 0) return;
     const doctorId = incForm.assignedDoctorId || undefined;
     if (editingInc) {
-      setIncomes((prev) => prev.map((i) => i.id === editingInc.id ? { ...i, ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId } : i));
+      updateIncome(editingInc.id, { ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId });
       toast.success(t("finance.incomeUpdated"));
     } else {
-      const newInc: Income = { id: `inc-${Date.now()}`, date: format(today, "yyyy-MM-dd"), ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId };
-      setIncomes((prev) => [newInc, ...prev]);
+      addIncome({ date: format(today, "yyyy-MM-dd"), ...incForm, description: incForm.description.trim(), patientName: incForm.patientName || undefined, assignedDoctorId: doctorId });
       toast.success(t("finance.incomeAdded"));
     }
     setIncModalOpen(false);
@@ -318,23 +319,22 @@ export default function Finance() {
   const saveRec = () => {
     if (!recForm.description.trim() || recForm.amount <= 0) return;
     if (editingRec) {
-      setRecurring((prev) => prev.map((r) => r.id === editingRec.id ? { ...r, ...recForm, description: recForm.description.trim() } : r));
+      updateRecurring(editingRec.id, { ...recForm, description: recForm.description.trim() });
       toast.success(t("finance.recurringUpdated"));
     } else {
-      const newRec: RecurringExpense = { id: `rec-${Date.now()}`, ...recForm, description: recForm.description.trim(), isActive: true };
-      setRecurring((prev) => [newRec, ...prev]);
+      addRecurring({ ...recForm, description: recForm.description.trim(), isActive: true });
       toast.success(t("finance.recurringAdded"));
     }
     setRecModalOpen(false);
   };
   const deleteRec = () => {
     if (!deleteRecTarget) return;
-    setRecurring((prev) => prev.filter((r) => r.id !== deleteRecTarget.id));
+    deleteRecurring(deleteRecTarget.id);
     setDeleteRecTarget(null);
     toast.success(t("finance.recurringDeleted"));
   };
   const toggleRecActive = (id: string) => {
-    setRecurring((prev) => prev.map((r) => r.id === id ? { ...r, isActive: !r.isActive } : r));
+    toggleRecurringActive(id);
   };
 
   const timeFilters: { key: TimeFilter; label: string }[] = [

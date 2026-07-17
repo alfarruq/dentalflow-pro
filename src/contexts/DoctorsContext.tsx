@@ -1,8 +1,16 @@
 import { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from "react";
-import { mockDoctors, Doctor, DoctorColor, doctorColorPalette } from "@/data/mockDoctors";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Doctor } from "@/data/mockDoctors";
+import { apiFetch } from "@/lib/api/client";
+import type { DoctorDto, DoctorWriteDto } from "@/lib/api/dto";
+import { mapDoctor } from "@/lib/api/mappers";
+import { useAuth } from "@/contexts/AuthContext";
 
 const STORAGE_FILTER = "dentaflow-doctor-filter";
 const STORAGE_LAST_USED = "dentaflow-last-used-doctor";
+
+export const doctorsQueryKey = ["doctors"] as const;
 
 interface DoctorsContextType {
   doctors: Doctor[];
@@ -24,8 +32,50 @@ interface DoctorsContextType {
 
 const DoctorsContext = createContext<DoctorsContextType | undefined>(undefined);
 
+function toWriteDto(data: Partial<Omit<Doctor, "id">>): Partial<DoctorWriteDto> {
+  const dto: Partial<DoctorWriteDto> = {};
+  if (data.name !== undefined) dto.full_name = data.name;
+  if (data.specialty !== undefined) dto.specialty = data.specialty;
+  if (data.phone !== undefined) dto.phone_number = data.phone;
+  if (data.email !== undefined) dto.email = data.email;
+  return dto;
+}
+
 export function DoctorsProvider({ children }: { children: ReactNode }) {
-  const [doctors, setDoctors] = useState<Doctor[]>(mockDoctors);
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: doctors = [] } = useQuery({
+    queryKey: doctorsQueryKey,
+    queryFn: async () => {
+      const dtos = await apiFetch<DoctorDto[]>("/clinic/doctors/");
+      return dtos.map(mapDoctor);
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: doctorsQueryKey });
+
+  const addMutation = useMutation({
+    mutationFn: (data: Omit<Doctor, "id" | "isActive">) =>
+      apiFetch<DoctorDto>("/clinic/doctors/", { method: "POST", body: toWriteDto(data) }),
+    onSuccess: invalidate,
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Omit<Doctor, "id">> }) =>
+      apiFetch<DoctorDto>(`/clinic/doctors/${id}/`, { method: "PATCH", body: toWriteDto(data) }),
+    onSuccess: invalidate,
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiFetch<void>(`/clinic/doctors/${id}/`, { method: "DELETE" }),
+    onSuccess: invalidate,
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const [filterDoctorId, setFilterDoctorIdState] = useState<string | null>(() => {
     const stored = localStorage.getItem(STORAGE_FILTER);
@@ -52,39 +102,34 @@ export function DoctorsProvider({ children }: { children: ReactNode }) {
 
   const activeDoctors = useMemo(() => doctors.filter((d) => d.isActive), [doctors]);
 
-  const addDoctor = useCallback((data: Omit<Doctor, "id" | "isActive">) => {
-    setDoctors((prev) => {
-      const nextIndex = prev.length;
-      const fallbackColor: DoctorColor = doctorColorPalette[nextIndex % doctorColorPalette.length];
-      const newDoctor: Doctor = {
-        ...data,
-        color: data.color || fallbackColor,
-        id: `doc-${Date.now()}`,
-        isActive: true,
-      };
-      return [...prev, newDoctor];
-    });
-  }, []);
+  const addDoctor = useCallback(
+    (data: Omit<Doctor, "id" | "isActive">) => addMutation.mutate(data),
+    [addMutation],
+  );
 
-  const updateDoctor = useCallback((id: string, data: Partial<Omit<Doctor, "id">>) => {
-    setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
-  }, []);
+  const updateDoctor = useCallback(
+    (id: string, data: Partial<Omit<Doctor, "id">>) => updateMutation.mutate({ id, data }),
+    [updateMutation],
+  );
 
-  const deleteDoctor = useCallback((id: string) => {
-    setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, isActive: false } : d)));
-    setFilterDoctorIdState((current) => (current === id ? null : current));
-  }, []);
+  const deleteDoctor = useCallback(
+    (id: string) => {
+      deleteMutation.mutate(id);
+      setFilterDoctorIdState((current) => (current === id ? null : current));
+    },
+    [deleteMutation],
+  );
 
-  const restoreDoctor = useCallback((id: string) => {
-    setDoctors((prev) => prev.map((d) => (d.id === id ? { ...d, isActive: true } : d)));
-  }, []);
+  // The backend deletes doctors permanently (no is_active toggle yet — see
+  // BACKEND_SPEC.md), so there is nothing to restore.
+  const restoreDoctor = useCallback((_id: string) => {}, []);
 
   const getDoctor = useCallback(
     (id: string | null | undefined) => {
       if (!id) return undefined;
       return doctors.find((d) => d.id === id);
     },
-    [doctors]
+    [doctors],
   );
 
   const setFilterDoctorId = useCallback((id: string | null) => {

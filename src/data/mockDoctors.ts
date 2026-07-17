@@ -80,42 +80,7 @@ export const doctorColorMap: Record<DoctorColor, {
   },
 };
 
-export const mockDoctors: Doctor[] = [
-  {
-    id: "doc-1",
-    name: "Dr. Javohir Karimov",
-    specialty: "Terapevt-stomatolog",
-    phone: "+998 90 123 45 67",
-    email: "javohir@dentaflow.uz",
-    color: "blue",
-    isActive: true,
-  },
-  {
-    id: "doc-2",
-    name: "Dr. Madina Toshmatova",
-    specialty: "Ortodont",
-    phone: "+998 90 234 56 78",
-    email: "madina@dentaflow.uz",
-    color: "emerald",
-    isActive: true,
-  },
-  {
-    id: "doc-3",
-    name: "Dr. Umid Saidov",
-    specialty: "Stomatolog-xirurg",
-    phone: "+998 90 345 67 89",
-    email: "umid@dentaflow.uz",
-    color: "amber",
-    isActive: true,
-  },
-];
-
 export function getDoctorById(doctors: Doctor[], id: string | null | undefined): Doctor | undefined {
   if (!id) return undefined;
   return doctors.find((d) => d.id === id);
-}
-
-export function pickRandomDoctorId(rng: () => number): string {
-  const active = mockDoctors.filter((d) => d.isActive);
-  return active[Math.floor(rng() * active.length)].id;
 }

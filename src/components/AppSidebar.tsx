@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, Package, BarChart3, LogOut, Wallet, Bell } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, LogOut } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -20,10 +20,6 @@ const navItems = [
   { key: "dashboard", path: "/", icon: LayoutDashboard },
   { key: "patients", path: "/patients", icon: Users },
   { key: "appointments", path: "/appointments", icon: CalendarDays },
-  { key: "reminders", path: "/reminders", icon: Bell },
-  { key: "inventory", path: "/inventory", icon: Package },
-  { key: "finance", path: "/finance", icon: Wallet },
-  { key: "analytics", path: "/analytics", icon: BarChart3 },
 ];
 
 export function AppSidebar() {

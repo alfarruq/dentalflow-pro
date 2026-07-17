@@ -17,11 +17,15 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(false);
-    if (login(username, password)) {
+    setSubmitting(true);
+    const ok = await login(username, password);
+    setSubmitting(false);
+    if (ok) {
       navigate("/", { replace: true });
     } else {
       setError(true);
@@ -57,7 +61,7 @@ export default function Login() {
               <Label htmlFor="password" className="text-[13px]">{t("login.password")}</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("login.passwordPlaceholder")} autoComplete="current-password" />
             </div>
-            <Button type="submit" className="w-full rounded-xl">{t("login.submit")}</Button>
+            <Button type="submit" className="w-full rounded-xl" disabled={submitting}>{t("login.submit")}</Button>
           </form>
         </CardContent>
       </Card>

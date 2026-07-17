@@ -1,15 +1,14 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import {
   ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
   Image as ImageIcon, CalendarPlus, Stethoscope,
-  Banknote, Edit, Save, Bell, Plus,
-  CheckCircle2, Clock, ChevronDown, ChevronUp, Package,
+  Edit, Save, Plus, CheckCircle2, Clock, Upload, Trash2,
+  Pill, Printer, X,
 } from "lucide-react";
 import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
-import { AddReminderDialog } from "@/components/AddReminderDialog";
 import { DoctorBadge } from "@/components/DoctorBadge";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { Button } from "@/components/ui/button";
@@ -19,30 +18,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { mockPatients, type Patient } from "@/data/mockPatients";
-import {
-  TREATMENT_TYPE_LABELS,
-  treatmentToToothStatus,
-  type DentalTreatmentType,
-  type Treatment,
-  type PaymentMethod,
-  type ServiceMaterial,
-} from "@/data/mockTreatments";
+import { TREATMENT_TYPE_LABELS, type Patient, type TreatmentType, type GalleryImage } from "@/data/mockPatients";
+import type { Treatment, TreatmentStatus } from "@/data/mockTreatments";
+import type { Prescription } from "@/data/mockPrescriptions";
+import { loadClinicInfo } from "@/data/clinicInfo";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api/client";
+import { type PatientDetailResult } from "@/lib/api/mappers";
 import { useTreatments } from "@/contexts/TreatmentContext";
-import { useInventory } from "@/contexts/InventoryContext";
-import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
-import { useFinance } from "@/contexts/FinanceContext";
-import { type IncomeCategory } from "@/data/mockFinance";
+import { usePatients, usePatientDetail, patientKeys } from "@/contexts/PatientsContext";
+import { usePrescriptions } from "@/contexts/PrescriptionsContext";
+import { useDoctors } from "@/contexts/DoctorsContext";
 import { toast } from "sonner";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,258 +61,172 @@ const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
 
 function fmt(n: number) { return n.toLocaleString("uz-UZ"); }
 
-const patientStatusColors: Record<string, string> = {
-  pending:     "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+const patientStatusColors: Record<TreatmentStatus, string> = {
   in_progress: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
   completed:   "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
 };
 
-const TREATMENT_STATUS_BORDER: Record<string, string> = {
-  planned:     "border-l-blue-400",
+const TREATMENT_STATUS_BORDER: Record<TreatmentStatus, string> = {
   in_progress: "border-l-orange-400",
   completed:   "border-l-green-500",
-  cancelled:   "border-l-gray-400",
 };
 
-const TREATMENT_STATUS_BG: Record<string, string> = {
-  planned:     "bg-blue-50/50 dark:bg-blue-950/20",
+const TREATMENT_STATUS_BG: Record<TreatmentStatus, string> = {
   in_progress: "bg-orange-50/50 dark:bg-orange-950/20",
   completed:   "bg-green-50/30 dark:bg-green-950/10",
-  cancelled:   "bg-gray-50/50 dark:bg-gray-900/20",
 };
 
-const TREATMENT_STATUS_BADGE: Record<string, string> = {
-  planned:     "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30",
+const TREATMENT_STATUS_BADGE: Record<TreatmentStatus, string> = {
   in_progress: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
   completed:   "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30",
-  cancelled:   "bg-gray-500/15 text-gray-600 dark:text-gray-400 border-gray-500/30",
 };
 
-const treatmentToIncomeCategory: Record<DentalTreatmentType, IncomeCategory> = {
-  implant:      "implant",
-  filling:      "plomba",
-  cleaning:     "tozalash",
-  whitening:    "oqartirish",
-  crown:        "toj",
-  extraction:   "boshqa_daromad",
-  orthodontics: "boshqa_daromad",
-  other:        "boshqa_daromad",
-};
+// ─── Tooth multi-select ───────────────────────────────────────────────────────
 
-// ─── Complete Treatment Dialog ────────────────────────────────────────────────
+function ToothMultiSelect({ selected, onChange }: { selected: string[]; onChange: (v: string[]) => void }) {
+  function toggle(n: string) {
+    onChange(selected.includes(n) ? selected.filter((x) => x !== n) : [...selected, n]);
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {TOOTH_NUMBERS.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => toggle(n)}
+          className={cn(
+            "h-8 w-9 rounded-md border text-xs font-medium transition-colors",
+            selected.includes(n)
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border hover:bg-accent",
+          )}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-function CompleteTreatmentDialog({
-  open,
-  onOpenChange,
-  treatment,
-  patientName,
-  allVisitsDone,
-  completedVisits,
-  plannedVisits,
+// ─── Treatment Dialog (create + edit) ─────────────────────────────────────────
+
+function TreatmentDialog({
+  patientId, treatment, open, onOpenChange,
 }: {
+  patientId: string;
+  treatment: Treatment | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  treatment: Treatment;
-  patientName: string;
-  allVisitsDone: boolean;
-  completedVisits: number;
-  plannedVisits: number;
 }) {
   const { t } = useTranslation();
-  const { getTreatmentBalance, addPayment, updateTreatment } = useTreatments();
-  const { usages } = useInventory();
-  const { addIncome } = useFinance();
+  const { addTreatment, updateTreatment } = useTreatments();
+  const isEditing = !!treatment;
 
-  const balance = getTreatmentBalance(treatment.id);
-  const treatmentUsages = useMemo(
-    () => usages.filter((u) => u.treatmentId === treatment.id),
-    [usages, treatment.id],
-  );
+  const [date, setDate]                 = useState<Date>(treatment ? new Date(treatment.date) : new Date());
+  const [teeth, setTeeth]               = useState<string[]>(treatment?.teeth ?? []);
+  const [type, setType]                 = useState<TreatmentType>(treatment?.treatmentType ?? "filling");
+  const [totalCost, setTotalCost]       = useState(treatment ? String(treatment.totalCost) : "");
+  const [amountPaid, setAmountPaid]     = useState(treatment ? String(treatment.amountPaid) : "");
+  const [doctorId, setDoctorId]         = useState(treatment?.doctorId ?? "");
+  const [note, setNote]                 = useState(treatment?.note ?? "");
 
-  const [payAmount, setPayAmount] = useState("");
-  const [payMethod, setPayMethod] = useState<PaymentMethod>("cash");
+  function reset() {
+    setDate(new Date()); setTeeth([]); setType("filling");
+    setTotalCost(""); setAmountPaid(""); setDoctorId(""); setNote("");
+  }
 
-  useEffect(() => {
-    if (open) { setPayAmount(""); setPayMethod("cash"); }
-  }, [open]);
-
-  // Same unified rows as TreatmentCard: planned + actual usages
-  const materialRows = useMemo(() => {
-    type Row = { itemId: string; itemName: string; unit: string; plannedQty: number | null; usedQty: number };
-    const rows: Row[] = [];
-    const seen = new Set<string>();
-    (treatment.plannedMaterials ?? []).forEach((m) => {
-      const used = treatmentUsages.filter((u) => u.itemId === m.itemId).reduce((s, u) => s + u.quantity, 0);
-      rows.push({ itemId: m.itemId, itemName: m.itemName, unit: m.unit, plannedQty: m.plannedQty, usedQty: used });
-      seen.add(m.itemId);
-    });
-    treatmentUsages.forEach((u) => {
-      if (!seen.has(u.itemId)) {
-        const total = treatmentUsages.filter((x) => x.itemId === u.itemId).reduce((s, x) => s + x.quantity, 0);
-        rows.push({ itemId: u.itemId, itemName: u.itemName, unit: u.unit, plannedQty: null, usedQty: total });
-        seen.add(u.itemId);
-      }
-    });
-    return rows;
-  }, [treatment.plannedMaterials, treatmentUsages]);
-
-  function handleConfirm() {
-    const today = new Date().toISOString().slice(0, 10);
-    const extra = Number(payAmount) || 0;
-
-    if (extra > 0) {
-      addPayment({
-        treatmentId: treatment.id,
-        patientId: treatment.patientId,
-        amount: extra,
-        date: today,
-        method: payMethod,
-        note: t("treatments.finalPayment"),
-      });
+  function handleSave() {
+    const data = {
+      date: date.toISOString(),
+      teeth,
+      treatmentType: type,
+      totalCost: Number(totalCost) || 0,
+      amountPaid: Number(amountPaid) || 0,
+      doctorId: doctorId || undefined,
+      note: note.trim() || undefined,
+    };
+    if (treatment) {
+      updateTreatment(treatment.id, data);
+      toast.success(t("treatments.treatmentUpdated"));
+    } else {
+      addTreatment({ patientId, status: "in_progress", ...data });
+      toast.success(t("treatments.treatmentAdded"));
     }
-
-    const totalPaid = balance.paid + extra;
-    if (totalPaid > 0) {
-      addIncome({
-        date: today,
-        category: treatmentToIncomeCategory[treatment.type],
-        description: treatment.title,
-        amount: totalPaid,
-        patientName,
-        assignedDoctorId: treatment.assignedDoctorId,
-        isAutomatic: true,
-      });
-    }
-
-    updateTreatment(treatment.id, { status: "completed", endDate: today });
-    toast.success(t("treatments.treatmentCompleted"));
+    if (!treatment) reset();
     onOpenChange(false);
   }
 
-  const paymentMethods: { value: PaymentMethod; label: string }[] = [
-    { value: "cash",     label: t("patientProfile.cash") },
-    { value: "card",     label: t("patientProfile.card") },
-    { value: "transfer", label: t("patientProfile.transfer") },
-  ];
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v && !treatment) reset(); }}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-green-600" />
-            {t("treatments.completeTreatment")}
+            <Stethoscope className="h-4 w-4 text-primary" />
+            {isEditing ? t("treatments.editTreatment") : t("treatments.newTreatment")}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Warning: not all visits done */}
-          {!allVisitsDone && (
-            <div className="flex items-start gap-2 rounded-lg border border-orange-300 bg-orange-50 dark:bg-orange-950/20 px-3 py-2.5 text-sm text-orange-700 dark:text-orange-400">
-              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>
-                Rejalashtirilgan tashriflardan {completedVisits}/{plannedVisits} tasi bajarildi.
-                Muolajani shunga qaramay yakunlashni tasdiqlaysizmi?
-              </span>
-            </div>
-          )}
-
-          {/* Materials: planned vs actually used */}
-          {materialRows.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-sm font-semibold flex items-center gap-1.5">
-                <Package className="h-4 w-4 text-primary" />
-                {t("treatments.materialsUsed")}
-              </p>
-              <div className="rounded-lg border text-sm bg-background overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-1.5 text-[11px] font-medium text-muted-foreground bg-muted/50">
-                  <span>Mahsulot</span>
-                  <span className="text-center w-10">Birlik</span>
-                  <span className="text-center w-12">Rej.</span>
-                  <span className="text-center w-14">Sarflandi</span>
-                </div>
-                {materialRows.map((m) => (
-                  <div
-                    key={m.itemId}
-                    className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-3 py-2 border-t border-border/30 items-center"
-                  >
-                    <span className="truncate">{m.itemName}</span>
-                    <span className="text-center w-10 text-muted-foreground">{m.unit}</span>
-                    <span className="text-center w-12 text-muted-foreground">{m.plannedQty ?? "—"}</span>
-                    <span className={cn(
-                      "text-center w-14 font-semibold",
-                      m.usedQty === 0
-                        ? "text-muted-foreground"
-                        : m.plannedQty !== null && m.usedQty > m.plannedQty
-                          ? "text-orange-600"
-                          : "text-green-600",
-                    )}>
-                      {m.usedQty === 0 ? "—" : m.usedQty}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Payment summary */}
-          <div className="rounded-lg border p-3 space-y-1.5 text-sm bg-muted/30">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{t("patients.totalCost")}</span>
-              <span className="font-semibold">{fmt(balance.totalCost)}</span>
-            </div>
-            <div className="flex justify-between text-green-600">
-              <span>{t("patients.paid")}</span>
-              <span className="font-semibold">{fmt(balance.paid)}</span>
-            </div>
-            {balance.remaining > 0 ? (
-              <div className="flex justify-between text-destructive font-semibold border-t border-border/50 pt-1.5 mt-1">
-                <span>{t("patients.remaining")}</span>
-                <span>{fmt(balance.remaining)}</span>
-              </div>
-            ) : balance.totalCost > 0 && (
-              <div className="flex items-center gap-1 text-green-600 font-medium border-t border-border/50 pt-1.5 mt-1">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {t("treatments.fullyPaid")}
-              </div>
-            )}
+          {/* Date */}
+          <div className="space-y-1.5">
+            <Label>{t("treatments.date")}</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {format(date, "dd.MM.yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarPicker mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
           </div>
 
-          {/* Collect remaining payment */}
-          {balance.remaining > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t("treatments.collectPayment")}</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  className="flex-1"
-                  placeholder={`${fmt(balance.remaining)} so'm`}
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                />
-                <Select value={payMethod} onValueChange={(v) => setPayMethod(v as PaymentMethod)}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Teeth */}
+          <div className="space-y-1.5">
+            <Label>{t("treatments.teeth")}</Label>
+            <ToothMultiSelect selected={teeth} onChange={setTeeth} />
+          </div>
+
+          {/* Treatment type */}
+          <div className="space-y-1.5">
+            <Label>{t("patients.treatmentType")}</Label>
+            <Select value={type} onValueChange={(v) => setType(v as TreatmentType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.entries(TREATMENT_TYPE_LABELS) as [TreatmentType, string][]).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Cost + Paid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>{t("patients.totalCost")}</Label>
+              <Input type="number" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} placeholder="500 000" />
             </div>
-          )}
+            <div className="space-y-1.5">
+              <Label>{t("patients.paid")}</Label>
+              <Input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="200 000" />
+            </div>
+          </div>
+
+          {/* Doctor */}
+          <DoctorSelect value={doctorId} onChange={setDoctorId} label={t("reminders.doctor")} hideIfSingle={false} />
+
+          {/* Note */}
+          <div className="space-y-1.5">
+            <Label>{t("treatments.notes")}</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="..." />
+          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {t("patients.cancel")}
-          </Button>
-          <Button onClick={handleConfirm} className="gap-1.5 bg-green-600 hover:bg-green-700 text-white">
-            <CheckCircle2 className="h-4 w-4" />
-            {t("treatments.confirmComplete")}
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("patients.cancel")}</Button>
+          <Button onClick={handleSave} disabled={!totalCost}>{t("patients.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -323,300 +236,531 @@ function CompleteTreatmentDialog({
 // ─── Treatment Card ───────────────────────────────────────────────────────────
 
 function TreatmentCard({
-  treatment,
-  onAddVisit,
-  onAddPayment,
+  treatment, onEdit, onWritePrescription, onPrintPrescription,
 }: {
   treatment: Treatment;
-  onAddVisit: (t: Treatment) => void;
-  onAddPayment: (t: Treatment) => void;
+  onEdit: (t: Treatment) => void;
+  onWritePrescription: (t: Treatment) => void;
+  onPrintPrescription: (p: Prescription, t: Treatment) => void;
 }) {
   const { t } = useTranslation();
-  const { getTreatmentVisits, getTreatmentBalance } = useTreatments();
-  const { usages } = useInventory();
-  const [expanded, setExpanded] = useState(treatment.status !== "completed");
-  const [completeOpen, setCompleteOpen] = useState(false);
-  const [markVisitDone, setMarkVisitDone] = useState<{ id: string; visitNumber: number; date: string; time: string } | null>(null);
-  const [addMatOpen, setAddMatOpen] = useState(false);
+  const { completeTreatment } = useTreatments();
+  const { getTreatmentPrescriptions } = usePrescriptions();
+  const prescriptions = getTreatmentPrescriptions(treatment.id);
+  const remaining = treatment.totalCost - treatment.amountPaid;
 
-  const patient = mockPatients.find((p) => p.id === treatment.patientId);
-
-  const visits        = getTreatmentVisits(treatment.id);
-  const balance       = getTreatmentBalance(treatment.id);
-  const completedVisits = visits.filter((v) => v.status === "completed").length;
-  const progressPct   = treatment.plannedVisits > 0
-    ? Math.min(100, (completedVisits / treatment.plannedVisits) * 100)
-    : 0;
-
-  // Actual materials used from inventory, linked to this treatment
-  const treatmentUsages = useMemo(
-    () => usages.filter((u) => u.treatmentId === treatment.id),
-    [usages, treatment.id],
-  );
-
-  // Unified material rows: planned (from template) + extra usages not in plan
-  const materialRows = useMemo(() => {
-    type Row = { itemId: string; itemName: string; unit: string; plannedQty: number | null; usedQty: number };
-    const rows: Row[] = [];
-    const seen = new Set<string>();
-
-    (treatment.plannedMaterials ?? []).forEach((m) => {
-      const used = treatmentUsages.filter((u) => u.itemId === m.itemId).reduce((s, u) => s + u.quantity, 0);
-      rows.push({ itemId: m.itemId, itemName: m.itemName, unit: m.unit, plannedQty: m.plannedQty, usedQty: used });
-      seen.add(m.itemId);
-    });
-
-    treatmentUsages.forEach((u) => {
-      if (!seen.has(u.itemId)) {
-        const total = treatmentUsages.filter((x) => x.itemId === u.itemId).reduce((s, x) => s + x.quantity, 0);
-        rows.push({ itemId: u.itemId, itemName: u.itemName, unit: u.unit, plannedQty: null, usedQty: total });
-        seen.add(u.itemId);
-      }
-    });
-
-    return rows;
-  }, [treatment.plannedMaterials, treatmentUsages]);
-
-  const statusLabel: Record<string, string> = {
-    planned:     "Rejalashtirilgan",
-    in_progress: "Davom etmoqda",
-    completed:   "Yakunlangan",
-    cancelled:   "Bekor qilingan",
-  };
-
-  const canComplete = treatment.status === "in_progress";
-  const allVisitsDone = completedVisits >= treatment.plannedVisits;
-  const hasMaterials = (treatment.plannedMaterials?.length ?? 0) > 0;
+  function handleComplete() {
+    completeTreatment(treatment.id);
+    toast.success(t("treatments.treatmentCompleted"));
+  }
 
   return (
     <div
       className={cn(
-        "rounded-xl border border-border border-l-4 shadow-sm",
+        "rounded-xl border border-border border-l-4 shadow-sm p-4 space-y-3",
         TREATMENT_STATUS_BORDER[treatment.status],
         TREATMENT_STATUS_BG[treatment.status],
       )}
     >
-      {/* Header */}
-      <div className="flex items-start gap-3 p-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-sm">{treatment.title}</span>
-            <Badge
-              variant="outline"
-              className={cn("text-[10px] px-1.5 py-0 border", TREATMENT_STATUS_BADGE[treatment.status])}
-            >
-              {statusLabel[treatment.status]}
-            </Badge>
-            {hasMaterials && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
-                <Package className="h-2.5 w-2.5" />
-                {treatment.plannedMaterials!.length}
-              </Badge>
-            )}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <DoctorBadge doctorId={treatment.assignedDoctorId} variant="compact" />
-            <span>· {format(new Date(treatment.startDate), "dd.MM.yyyy")}</span>
-            {treatment.endDate && (
-              <span>— {format(new Date(treatment.endDate), "dd.MM.yyyy")}</span>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          aria-label="toggle"
-        >
-          {expanded
-            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-        </button>
-      </div>
-
-      {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
-          {/* Visit progress */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{t("treatments.completedVisits")}: {completedVisits} / {treatment.plannedVisits}</span>
-              <span>{Math.round(progressPct)}%</span>
-            </div>
-            <Progress value={progressPct} className="h-1.5" />
-          </div>
-
-          {/* Visit list */}
-          {visits.length > 0 && (
-            <div className="space-y-1">
-              {visits.map((v) => (
-                <div
-                  key={v.id}
-                  className="flex items-center gap-2 text-xs rounded-md bg-background/70 px-2.5 py-1.5 border border-border/40"
-                >
-                  <span className="flex-1 text-muted-foreground">
-                    {t("treatments.visitNumber")}{v.visitNumber} · {format(new Date(v.date), "dd.MM")} {v.time}
-                    {v.notes && <span className="ml-1 text-foreground/60">— {v.notes.slice(0, 40)}</span>}
-                  </span>
-                  {v.status === "scheduled" ? (
-                    <button
-                      onClick={() => setMarkVisitDone({ id: v.id, visitNumber: v.visitNumber, date: v.date, time: v.time })}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 border border-orange-300 transition-colors font-medium"
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      Keldi
-                    </button>
-                  ) : (
-                    <span className={cn(
-                      "font-bold",
-                      v.status === "completed" && "text-green-600",
-                      v.status === "missed"    && "text-destructive",
-                    )}>
-                      {v.status === "completed" ? "✓" : "✗"}
-                    </span>
-                  )}
-                </div>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-sm">{TREATMENT_TYPE_LABELS[treatment.treatmentType]}</span>
+          {treatment.teeth.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {treatment.teeth.map((n) => (
+                <Badge key={n} variant="outline" className="text-[10px] px-1.5 py-0">#{n}</Badge>
               ))}
             </div>
           )}
+          <Badge
+            variant="outline"
+            className={cn("text-[10px] px-1.5 py-0 border", TREATMENT_STATUS_BADGE[treatment.status])}
+          >
+            {t(`patients.${treatment.status}`)}
+          </Badge>
+        </div>
+        <span className="text-xs text-muted-foreground">{format(new Date(treatment.date), "dd.MM.yyyy")}</span>
+      </div>
 
-          {/* ── Materials (always visible for active/completed) ────────── */}
-          {treatment.status !== "cancelled" && (
-            <div className="space-y-1.5 pt-1">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5 text-primary" />
-                  {t("treatments.materials")}
-                  {materialRows.length > 0 && (
-                    <span className="text-muted-foreground font-normal">
-                      ({materialRows.reduce((s, m) => s + m.usedQty, 0)} {t("treatments.usedTotal")})
-                    </span>
-                  )}
-                </p>
-                {treatment.status !== "completed" && (
-                  <button
-                    onClick={() => setAddMatOpen(true)}
-                    className="flex items-center gap-1 text-[11px] text-primary hover:underline"
-                  >
-                    <Plus className="h-3 w-3" />
-                    {t("treatments.addMaterialUsage")}
-                  </button>
-                )}
-              </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <DoctorBadge doctorId={treatment.doctorId} variant="compact" />
+      </div>
 
-              {materialRows.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic px-1">
-                  {t("treatments.noMaterialsYet")}
-                </p>
-              ) : (
-                <div className="rounded-md border border-border/40 bg-background/50 text-xs overflow-hidden">
-                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-2.5 py-1 text-[10px] font-medium text-muted-foreground bg-muted/50">
-                    <span>Mahsulot</span>
-                    <span className="text-center w-8">Birlik</span>
-                    <span className="text-center w-12">Rej.</span>
-                    <span className="text-center w-14">Sarflandi</span>
-                  </div>
-                  {materialRows.map((m) => (
-                    <div
-                      key={m.itemId}
-                      className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 px-2.5 py-1.5 border-t border-border/30 items-center"
-                    >
-                      <span className="truncate">{m.itemName}</span>
-                      <span className="text-center w-8 text-muted-foreground">{m.unit}</span>
-                      <span className="text-center w-12 text-muted-foreground">
-                        {m.plannedQty ?? "—"}
-                      </span>
-                      <span className={cn(
-                        "text-center w-14 font-semibold",
-                        m.usedQty === 0
-                          ? "text-muted-foreground"
-                          : m.plannedQty !== null && m.usedQty > m.plannedQty
-                            ? "text-orange-600"
-                            : "text-green-600",
-                      )}>
-                        {m.usedQty === 0 ? "—" : `✓ ${m.usedQty}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs rounded-md bg-background/70 px-3 py-2 border border-border/40">
+        <span className="text-muted-foreground">
+          {t("patients.totalCost")}: <strong className="text-foreground">{fmt(treatment.totalCost)}</strong>
+        </span>
+        <span className="text-green-600">
+          {t("patients.paid")}: <strong>{fmt(treatment.amountPaid)}</strong>
+        </span>
+        {remaining > 0 && (
+          <span className="text-destructive font-medium">
+            {t("patients.remaining")}: <strong>{fmt(remaining)}</strong>
+          </span>
+        )}
+        {remaining <= 0 && treatment.totalCost > 0 && (
+          <span className="text-green-600 font-medium">✓ {t("treatments.fullyPaid")}</span>
+        )}
+      </div>
 
-          {/* Financial summary */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs rounded-md bg-background/70 px-3 py-2 border border-border/40">
-            <span className="text-muted-foreground">
-              {t("patients.totalCost")}: <strong className="text-foreground">{fmt(balance.totalCost)}</strong>
-            </span>
-            <span className="text-green-600">
-              {t("patients.paid")}: <strong>{fmt(balance.paid)}</strong>
-            </span>
-            {balance.remaining > 0 && (
-              <span className="text-destructive font-medium">
-                {t("patients.remaining")}: <strong>{fmt(balance.remaining)}</strong>
-              </span>
-            )}
-            {balance.remaining === 0 && balance.totalCost > 0 && (
-              <span className="text-green-600 font-medium">✓ To'liq to'landi</span>
-            )}
-          </div>
+      {treatment.note && (
+        <p className="text-xs text-muted-foreground italic">{treatment.note}</p>
+      )}
 
-          {treatment.notes && (
-            <p className="text-xs text-muted-foreground italic">{treatment.notes}</p>
-          )}
-
-          {/* Actions */}
-          {treatment.status !== "completed" && treatment.status !== "cancelled" && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onAddVisit(treatment)}>
-                <Plus className="h-3 w-3" />
-                {t("treatments.addVisit")}
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onAddPayment(treatment)}>
-                <Banknote className="h-3 w-3" />
-                {t("patientProfile.acceptPayment")}
-              </Button>
-              {canComplete && (
+      {prescriptions.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">{t("prescriptions.title")}</p>
+          <div className="space-y-1">
+            {prescriptions.map((rx) => (
+              <div
+                key={rx.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-background/70 px-2.5 py-1.5 border border-border/40 text-xs"
+              >
+                <span className="text-muted-foreground">
+                  {format(new Date(rx.date), "dd.MM.yyyy")} · {rx.medications.length} {t("prescriptions.medicationsCount")}
+                </span>
                 <Button
                   size="sm"
-                  variant={allVisitsDone ? "default" : "outline"}
-                  className={cn(
-                    "h-7 gap-1 text-xs",
-                    allVisitsDone
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "border-orange-400 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/20",
-                  )}
-                  onClick={() => setCompleteOpen(true)}
+                  variant="outline"
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                  onClick={() => onPrintPrescription(rx, treatment)}
                 >
-                  <CheckCircle2 className="h-3 w-3" />
-                  {t("treatments.markCompleted")}
+                  <Printer className="h-3.5 w-3.5" />
+                  {t("prescriptions.print")}
                 </Button>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <MarkVisitDoneDialog
-        visit={markVisitDone}
-        treatment={treatment}
-        open={!!markVisitDone}
-        onOpenChange={(v) => { if (!v) setMarkVisitDone(null); }}
-      />
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onEdit(treatment)}>
+          <Edit className="h-3 w-3" />
+          {t("treatments.editTreatment")}
+        </Button>
+        <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => onWritePrescription(treatment)}>
+          <Pill className="h-3 w-3" />
+          {t("prescriptions.newPrescription")}
+        </Button>
+        {treatment.status === "in_progress" && (
+          <Button
+            size="sm"
+            className="h-7 gap-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+            onClick={handleComplete}
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            {t("treatments.markCompleted")}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
-      <CompleteTreatmentDialog
-        open={completeOpen}
-        onOpenChange={setCompleteOpen}
-        treatment={treatment}
-        patientName={patient?.fullName ?? ""}
-        allVisitsDone={allVisitsDone}
-        completedVisits={completedVisits}
-        plannedVisits={treatment.plannedVisits}
-      />
+// ─── Prescription Dialog ──────────────────────────────────────────────────────
 
-      <AddMaterialUsageDialog
-        open={addMatOpen}
-        onOpenChange={setAddMatOpen}
-        treatment={treatment}
-      />
+interface MedicationDraft {
+  name: string;
+  dosage: string;
+  schedule: string;
+  duration: string;
+}
+
+function emptyMedication(): MedicationDraft {
+  return { name: "", dosage: "", schedule: "", duration: "" };
+}
+
+function PrescriptionDialog({
+  treatment, treatments, editing, open, onOpenChange,
+}: {
+  treatment: Treatment | null;
+  treatments: Treatment[];
+  editing: Prescription | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const { addPrescription, updatePrescription } = usePrescriptions();
+
+  const showTreatmentSelect = !treatment && !editing;
+
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState("");
+  const [date, setDate] = useState<Date>(new Date());
+  const [doctorId, setDoctorId] = useState("");
+  const [note, setNote] = useState("");
+  const [medications, setMedications] = useState<MedicationDraft[]>([emptyMedication()]);
+
+  useEffect(() => {
+    if (open) {
+      const initialTreatmentId = editing?.treatmentId ?? treatment?.id ?? treatments[0]?.id ?? "";
+      setSelectedTreatmentId(initialTreatmentId);
+      setDate(editing ? new Date(editing.date) : new Date());
+      const initialTreatment = treatment ?? treatments.find((tr) => tr.id === initialTreatmentId);
+      setDoctorId(editing?.doctorId ?? initialTreatment?.doctorId ?? "");
+      setNote(editing?.note ?? "");
+      setMedications(
+        editing
+          ? editing.medications.map((m) => ({ name: m.name, dosage: m.dosage, schedule: m.schedule, duration: m.duration }))
+          : [emptyMedication()],
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, treatment, editing, treatments]);
+
+  function handleTreatmentSelectChange(value: string) {
+    setSelectedTreatmentId(value);
+    const tr = treatments.find((t) => t.id === value);
+    setDoctorId(tr?.doctorId ?? "");
+  }
+
+  function updateMedication(index: number, field: keyof MedicationDraft, value: string) {
+    setMedications((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
+  }
+
+  function addMedicationRow() {
+    setMedications((prev) => [...prev, emptyMedication()]);
+  }
+
+  function removeMedicationRow(index: number) {
+    setMedications((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleSave() {
+    const targetTreatmentId = editing?.treatmentId ?? treatment?.id ?? selectedTreatmentId;
+    if (!targetTreatmentId) return;
+    const valid = medications.filter((m) => m.name.trim());
+    if (valid.length === 0) return;
+    const data = {
+      treatmentId: targetTreatmentId,
+      date: date.toISOString(),
+      doctorId: doctorId || undefined,
+      note: note.trim() || undefined,
+      medications: valid.map((m, i) => ({
+        id: `med-${Date.now()}-${i}`,
+        name: m.name.trim(),
+        dosage: m.dosage.trim(),
+        schedule: m.schedule.trim(),
+        duration: m.duration.trim(),
+      })),
+    };
+    if (editing) {
+      updatePrescription(editing.id, data);
+      toast.success(t("prescriptions.prescriptionUpdated"));
+    } else {
+      addPrescription(data);
+      toast.success(t("prescriptions.prescriptionAdded"));
+    }
+    onOpenChange(false);
+  }
+
+  const canSave = medications.some((m) => m.name.trim()) && Boolean(editing?.treatmentId ?? treatment?.id ?? selectedTreatmentId);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pill className="h-4 w-4 text-primary" />
+            {editing ? t("prescriptions.editPrescription") : t("prescriptions.newPrescription")}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {showTreatmentSelect && (
+            <div className="space-y-1.5">
+              <Label>{t("prescriptions.treatment")}</Label>
+              <Select value={selectedTreatmentId} onValueChange={handleTreatmentSelectChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {treatments.map((tr) => (
+                    <SelectItem key={tr.id} value={tr.id}>
+                      {TREATMENT_TYPE_LABELS[tr.treatmentType]}
+                      {tr.teeth.length > 0 && ` #${tr.teeth.join(", #")}`}
+                      {" — "}{format(new Date(tr.date), "dd.MM.yyyy")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>{t("treatments.date")}</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {format(date, "dd.MM.yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <DoctorSelect value={doctorId} onChange={setDoctorId} label={t("reminders.doctor")} hideIfSingle={false} />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t("prescriptions.medications")}</Label>
+              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={addMedicationRow}>
+                <Plus className="h-3 w-3" />
+                {t("prescriptions.addMedication")}
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {medications.map((med, i) => (
+                <div key={i} className="relative rounded-lg border border-border p-3 space-y-2">
+                  {medications.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMedicationRow(i)}
+                      className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
+                      aria-label={t("prescriptions.removeMedication")}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <Input
+                    className="h-8 text-sm pr-7"
+                    placeholder={t("prescriptions.medicationName")}
+                    value={med.name}
+                    onChange={(e) => updateMedication(i, "name", e.target.value)}
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder={t("prescriptions.dosage")}
+                      value={med.dosage}
+                      onChange={(e) => updateMedication(i, "dosage", e.target.value)}
+                    />
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder={t("prescriptions.schedule")}
+                      value={med.schedule}
+                      onChange={(e) => updateMedication(i, "schedule", e.target.value)}
+                    />
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder={t("prescriptions.duration")}
+                      value={med.duration}
+                      onChange={(e) => updateMedication(i, "duration", e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("prescriptions.note")}</Label>
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="..." />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("patients.cancel")}</Button>
+          <Button onClick={handleSave} disabled={!canSave}>{t("patients.save")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Printable Prescription ───────────────────────────────────────────────────
+
+function PrintablePrescription({
+  prescription, treatment, patient,
+}: {
+  prescription: Prescription;
+  treatment: Treatment;
+  patient: Patient;
+}) {
+  const clinic = loadClinicInfo();
+  const { getDoctor } = useDoctors();
+  const doctor = getDoctor(prescription.doctorId ?? treatment.doctorId);
+
+  return (
+    <div className="print-area p-10 text-black bg-white">
+      <div className="flex items-center gap-4 border-b-2 border-black pb-4 mb-6">
+        {clinic.logo && (
+          <img src={clinic.logo} alt={clinic.name} className="h-16 w-16 rounded object-cover" />
+        )}
+        <div>
+          <h1 className="text-xl font-bold">{clinic.name}</h1>
+          <p className="text-sm text-gray-600">{clinic.address}</p>
+          <p className="text-sm text-gray-600">{clinic.phone}</p>
+        </div>
+      </div>
+
+      <h2 className="text-lg font-semibold mb-4">
+        Retsept — {format(new Date(prescription.date), "dd.MM.yyyy")}
+      </h2>
+
+      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div>
+          <p className="text-gray-500">Bemor</p>
+          <p className="font-medium">{patient.fullName}{patient.age ? `, ${patient.age} yosh` : ""}</p>
+          <p>{patient.phone}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">Shifokor</p>
+          <p className="font-medium">{doctor?.name ?? "—"}</p>
+          {doctor?.specialty && <p>{doctor.specialty}</p>}
+        </div>
+      </div>
+
+      {prescription.note && (
+        <p className="mb-4 text-sm"><strong>Izoh:</strong> {prescription.note}</p>
+      )}
+
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="border-b-2 border-black text-left">
+            <th className="py-2 pr-2 w-8">#</th>
+            <th className="py-2 pr-2">Dori nomi</th>
+            <th className="py-2 pr-2">Dozasi</th>
+            <th className="py-2 pr-2">Qabul tartibi</th>
+            <th className="py-2">Muddati</th>
+          </tr>
+        </thead>
+        <tbody>
+          {prescription.medications.map((m, i) => (
+            <tr key={m.id} className="border-b border-gray-300">
+              <td className="py-2 pr-2">{i + 1}</td>
+              <td className="py-2 pr-2 font-medium">{m.name}</td>
+              <td className="py-2 pr-2">{m.dosage}</td>
+              <td className="py-2 pr-2">{m.schedule}</td>
+              <td className="py-2">{m.duration}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="mt-20 flex justify-between text-sm">
+        <p className="border-t border-black pt-1 w-40">Shifokor imzosi</p>
+        <p className="border-t border-black pt-1 w-40">Muhr</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Prescriptions Tab (all of a patient's prescriptions, across treatments) ──
+
+function PrescriptionsTab({
+  treatments, onNew, onEdit, onPrint,
+}: {
+  treatments: Treatment[];
+  onNew: () => void;
+  onEdit: (rx: Prescription, treatment: Treatment) => void;
+  onPrint: (rx: Prescription, treatment: Treatment) => void;
+}) {
+  const { t } = useTranslation();
+  const { getTreatmentPrescriptions, deletePrescription } = usePrescriptions();
+  const [deleteTarget, setDeleteTarget] = useState<Prescription | null>(null);
+
+  const rows = useMemo(
+    () =>
+      treatments
+        .flatMap((tr) => getTreatmentPrescriptions(tr.id).map((rx) => ({ rx, treatment: tr })))
+        .sort((a, b) => new Date(b.rx.date).getTime() - new Date(a.rx.date).getTime()),
+    [treatments, getTreatmentPrescriptions],
+  );
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    deletePrescription(deleteTarget.id);
+    setDeleteTarget(null);
+    toast.success(t("prescriptions.prescriptionDeleted"));
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+        <Pill className="h-14 w-14 opacity-15" />
+        <p className="text-sm">{t("prescriptions.noPrescriptions")}</p>
+        {treatments.length > 0 && (
+          <Button size="sm" onClick={onNew}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("prescriptions.newPrescription")}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {treatments.length > 0 && (
+        <div className="flex justify-end">
+          <Button size="sm" className="gap-1.5" onClick={onNew}>
+            <Plus className="h-4 w-4" />
+            {t("prescriptions.newPrescription")}
+          </Button>
+        </div>
+      )}
+      {rows.map(({ rx, treatment }) => (
+        <div key={rx.id} className="rounded-xl border border-border shadow-sm p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-sm">{format(new Date(rx.date), "dd.MM.yyyy")}</span>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                {TREATMENT_TYPE_LABELS[treatment.treatmentType]}
+                {treatment.teeth.length > 0 && ` #${treatment.teeth.join(", #")}`}
+              </Badge>
+            </div>
+            <DoctorBadge doctorId={rx.doctorId ?? treatment.doctorId} variant="compact" />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {rx.medications.map((m) => (
+              <span key={m.id} className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs">
+                {m.name}
+                {m.dosage && ` · ${m.dosage}`}
+              </span>
+            ))}
+          </div>
+
+          {rx.note && <p className="text-xs text-muted-foreground italic">{rx.note}</p>}
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onEdit(rx, treatment)}>
+              <Edit className="h-3.5 w-3.5" />
+              {t("prescriptions.edit")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget(rx)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {t("prescriptions.delete")}
+            </Button>
+            <Button size="sm" className="gap-1.5" onClick={() => onPrint(rx, treatment)}>
+              <Printer className="h-3.5 w-3.5" />
+              {t("prescriptions.print")}
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("prescriptions.deleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("prescriptions.deleteConfirmDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("patients.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("prescriptions.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -700,757 +844,6 @@ function AddAppointmentDialog({
   );
 }
 
-// ─── New Treatment Dialog ─────────────────────────────────────────────────────
-
-function NewTreatmentDialog({
-  patientId, open, onOpenChange, onCreated,
-}: {
-  patientId: string;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onCreated: (t: Treatment) => void;
-}) {
-  const { t } = useTranslation();
-  const { addTreatment } = useTreatments();
-  const { getTemplatesForType } = useServiceTemplates();
-
-  const [type, setType]               = useState<DentalTreatmentType>("filling");
-  const [templateId, setTemplateId]   = useState("");
-  const [tooth, setTooth]             = useState("11");
-  const [cost, setCost]               = useState("");
-  const [plannedVisits, setPlanned]   = useState("2");
-  const [doctorId, setDoctorId]       = useState("");
-  const [startDate, setStartDate]     = useState<Date>(new Date());
-  const [notes, setNotes]             = useState("");
-  const [materials, setMaterials]     = useState<ServiceMaterial[]>([]);
-
-  const matchingTemplates = getTemplatesForType(type);
-
-  // When type changes, reset template selection
-  function handleTypeChange(v: DentalTreatmentType) {
-    setType(v);
-    setTemplateId("");
-    setMaterials([]);
-    setCost("");
-  }
-
-  // When template is selected, auto-fill cost + materials
-  function handleTemplateSelect(id: string) {
-    setTemplateId(id);
-    const tpl = matchingTemplates.find((t) => t.id === id);
-    if (tpl) {
-      setCost(String(tpl.price));
-      setPlanned(String(Math.max(1, tpl.duration > 60 ? 3 : tpl.duration > 45 ? 2 : 1)));
-      setMaterials(tpl.materials.map((m) => ({ ...m })));
-    }
-  }
-
-  function updateMaterialQty(itemId: string, qty: number) {
-    setMaterials((prev) =>
-      prev.map((m) => (m.itemId === itemId ? { ...m, plannedQty: Math.max(0.1, qty) } : m)),
-    );
-  }
-
-  function reset() {
-    setType("filling"); setTemplateId(""); setTooth("11");
-    setCost(""); setPlanned("2"); setDoctorId("");
-    setStartDate(new Date()); setNotes(""); setMaterials([]);
-  }
-
-  function handleSave() {
-    const newT = addTreatment({
-      patientId,
-      toothNumbers:    [tooth],
-      type,
-      title:           `${TREATMENT_TYPE_LABELS[type]} — #${tooth}`,
-      totalCost:       Number(cost) || 0,
-      status:          "planned",
-      assignedDoctorId: doctorId,
-      startDate:       startDate.toISOString().slice(0, 10),
-      plannedVisits:   Number(plannedVisits) || 1,
-      notes,
-      templateId:      templateId || undefined,
-      plannedMaterials: materials.length > 0 ? materials : undefined,
-    });
-    onCreated(newT);
-    reset();
-    onOpenChange(false);
-    toast.success(t("treatments.treatmentAdded"));
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Stethoscope className="h-4 w-4 text-primary" />
-            {t("treatments.newTreatment")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Treatment type */}
-          <div className="space-y-1.5">
-            <Label>{t("patients.treatmentType")}</Label>
-            <Select value={type} onValueChange={(v) => handleTypeChange(v as DentalTreatmentType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {(Object.entries(TREATMENT_TYPE_LABELS) as [DentalTreatmentType, string][]).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Template picker — shown when matching templates exist */}
-          {matchingTemplates.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5 text-primary" />
-                {t("treatments.serviceTemplate")}
-              </Label>
-              <Select value={templateId} onValueChange={handleTemplateSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("treatments.selectTemplate")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {matchingTemplates.map((tpl) => (
-                    <SelectItem key={tpl.id} value={tpl.id}>
-                      {tpl.name}
-                      <span className="ml-2 text-muted-foreground text-xs">
-                        ({fmt(tpl.price)} so'm · {tpl.materials.length} material)
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Tooth */}
-          <div className="space-y-1.5">
-            <Label>{t("patientProfile.toothNumber")}</Label>
-            <Select value={tooth} onValueChange={setTooth}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="max-h-52">
-                {TOOTH_NUMBERS.map((n) => <SelectItem key={n} value={n}>#{n}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Cost */}
-          <div className="space-y-1.5">
-            <Label>{t("patientProfile.cost")}</Label>
-            <Input type="number" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="500 000" />
-          </div>
-
-          {/* Planned visits */}
-          <div className="space-y-1.5">
-            <Label>{t("treatments.plannedVisitsCount")}</Label>
-            <Select value={plannedVisits} onValueChange={setPlanned}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["1","2","3","4","5","6"].map((n) => (
-                  <SelectItem key={n} value={n}>{n} ta</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Start date */}
-          <div className="space-y-1.5">
-            <Label>{t("treatments.startDate")}</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {format(startDate, "dd.MM.yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarPicker mode="single" selected={startDate} onSelect={(d) => d && setStartDate(d)} className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Doctor */}
-          <DoctorSelect value={doctorId} onChange={setDoctorId} label={t("reminders.doctor")} hideIfSingle={false} />
-
-          {/* Materials preview (from template) */}
-          {materials.length > 0 && (
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5 text-primary" />
-                {t("treatments.materials")}
-                <span className="text-xs font-normal text-muted-foreground">({t("treatments.adjustable")})</span>
-              </Label>
-              <div className="rounded-lg border border-border divide-y divide-border/50">
-                {materials.map((m) => (
-                  <div key={m.itemId} className="flex items-center gap-2 px-3 py-2">
-                    <span className="flex-1 text-sm truncate">{m.itemName}</span>
-                    <span className="text-xs text-muted-foreground w-12 shrink-0">{m.unit}</span>
-                    <Input
-                      type="number"
-                      className="h-7 w-16 text-xs text-center"
-                      value={m.plannedQty}
-                      min={0.1}
-                      step={0.5}
-                      onChange={(e) => updateMaterialQty(m.itemId, Number(e.target.value))}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label>{t("appointments.notes")}</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="..." />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>{t("patients.cancel")}</Button>
-          <Button onClick={handleSave} disabled={!cost}>{t("patients.save")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Add Material Usage Dialog ───────────────────────────────────────────────
-
-function AddMaterialUsageDialog({
-  open,
-  onOpenChange,
-  treatment,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  treatment: Treatment;
-}) {
-  const { t } = useTranslation();
-  const { items: invItems, useItem } = useInventory();
-
-  const [itemId, setItemId] = useState("");
-  const [qty, setQty] = useState("1");
-
-  useEffect(() => {
-    if (open) { setItemId(""); setQty("1"); }
-  }, [open]);
-
-  const selectedItem = invItems.find((i) => i.id === itemId);
-  const maxQty = selectedItem?.quantity ?? 0;
-  const qtyNum = Math.max(1, Number(qty) || 1);
-  const canConfirm = !!itemId && qtyNum > 0 && qtyNum <= maxQty;
-
-  function handleConfirm() {
-    if (!canConfirm) return;
-    useItem({
-      itemId,
-      quantity: qtyNum,
-      usedByDoctorId: treatment.assignedDoctorId,
-      treatmentId: treatment.id,
-      note: "Qo'lda qo'shildi",
-    });
-    toast.success(t("treatments.materialAdded"));
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-primary" />
-            {t("treatments.addMaterialUsage")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-sm">{t("treatments.selectMaterial")}</Label>
-            <Select value={itemId} onValueChange={setItemId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("treatments.selectMaterialPlaceholder")} />
-              </SelectTrigger>
-              <SelectContent>
-                {invItems
-                  .filter((i) => i.quantity > 0)
-                  .map((i) => (
-                    <SelectItem key={i.id} value={i.id}>
-                      {i.name} — {i.quantity} {i.unit}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm">{t("treatments.quantity")}</Label>
-            <Input
-              type="number"
-              min={1}
-              max={maxQty}
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-            />
-            {selectedItem && (
-              <p className="text-xs text-muted-foreground">
-                {t("treatments.inStock")}: {selectedItem.quantity} {selectedItem.unit}
-              </p>
-            )}
-            {itemId && qtyNum > maxQty && (
-              <p className="text-xs text-destructive">
-                {t("treatments.notEnoughStock")}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            {t("patients.cancel")}
-          </Button>
-          <Button onClick={handleConfirm} disabled={!canConfirm} className="gap-1.5">
-            <Plus className="h-4 w-4" />
-            {t("treatments.addMaterialUsage")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Mark Visit Done Dialog ───────────────────────────────────────────────────
-
-interface MaterialRow {
-  itemId: string;
-  itemName: string;
-  unit: string;
-  qty: number;
-  stock: number;
-}
-
-function MarkVisitDoneDialog({
-  visit, treatment, open, onOpenChange,
-}: {
-  visit: { id: string; visitNumber: number; date: string; time: string } | null;
-  treatment: Treatment | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const { updateVisit } = useTreatments();
-  const { useItem, items: invItems } = useInventory();
-
-  const [notes, setNotes] = useState("");
-  const [matRows, setMatRows] = useState<MaterialRow[]>([]);
-
-  useEffect(() => {
-    if (!open || !treatment?.plannedMaterials?.length) {
-      setMatRows([]);
-      return;
-    }
-    setMatRows(
-      treatment.plannedMaterials.map((m) => {
-        const inv = invItems.find((i) => i.id === m.itemId);
-        return { itemId: m.itemId, itemName: m.itemName, unit: m.unit, qty: m.plannedQty, stock: inv?.quantity ?? 0 };
-      }),
-    );
-  }, [open, treatment?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleConfirm() {
-    if (!visit || !treatment) return;
-    updateVisit(visit.id, { status: "completed", notes: notes || undefined });
-    matRows.forEach((row) => {
-      if (row.qty > 0) {
-        useItem({
-          itemId: row.itemId,
-          quantity: row.qty,
-          usedByDoctorId: treatment.assignedDoctorId,
-          visitId: visit.id,
-          treatmentId: treatment.id,
-          note: `${treatment.title} — ${t("treatments.visitNumber")}${visit.visitNumber}`,
-        });
-      }
-    });
-    onOpenChange(false);
-    toast.success(t("treatments.visitCompleted"));
-  }
-
-  if (!visit || !treatment) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            {t("treatments.visitNumber")}{visit.visitNumber} — {t("treatments.markVisitDone")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="rounded-lg bg-muted px-3 py-2 text-sm">
-          <p className="font-medium">{treatment.title}</p>
-          <p className="text-muted-foreground text-xs mt-0.5">{visit.date} {visit.time}</p>
-        </div>
-
-        <div className="space-y-4">
-          {/* Notes */}
-          <div className="space-y-1.5">
-            <Label className="text-sm">{t("treatments.notes")}</Label>
-            <textarea
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-              rows={2}
-              placeholder={t("treatments.notesPlaceholder")}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-
-          {/* Material rows */}
-          {matRows.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium flex items-center gap-1.5">
-                <Package className="h-4 w-4 text-primary" />
-                {t("treatments.materialsUsed")}
-              </p>
-              <div className="rounded-lg border divide-y text-sm bg-background">
-                {matRows.map((row) => (
-                  <div key={row.itemId} className="flex items-center gap-2 px-3 py-2">
-                    <span className="flex-1 truncate">{row.itemName}</span>
-                    <span className="text-xs text-muted-foreground w-10">{row.unit}</span>
-                    <input
-                      type="number"
-                      className={cn(
-                        "w-16 h-7 rounded border text-center text-sm focus:outline-none focus:ring-1 focus:ring-ring",
-                        row.qty > row.stock ? "border-destructive" : "border-input",
-                      )}
-                      min={0}
-                      step={0.5}
-                      value={row.qty}
-                      onChange={(e) =>
-                        setMatRows((prev) =>
-                          prev.map((r) => r.itemId === row.itemId ? { ...r, qty: Number(e.target.value) } : r),
-                        )
-                      }
-                    />
-                    {row.qty > row.stock && (
-                      <span className="text-xs text-destructive">({t("treatments.stock")}: {row.stock})</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>{t("patients.cancel")}</Button>
-          <Button className="gap-1.5 bg-green-600 hover:bg-green-700 text-white" onClick={handleConfirm}>
-            <CheckCircle2 className="h-4 w-4" />
-            {t("treatments.markVisitDone")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Add Visit Dialog (with materials deduction on complete) ──────────────────
-
-function AddVisitDialog({
-  treatment, open, onOpenChange,
-}: {
-  treatment: Treatment | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const { addVisit, getTreatmentVisits, updateTreatment } = useTreatments();
-  const { useItem, items: invItems } = useInventory();
-
-  const [visitDate, setVisitDate]   = useState<Date>(new Date());
-  const [visitTime, setVisitTime]   = useState("09:00");
-  const [visitStatus, setVStatus]   = useState<"scheduled" | "completed">("scheduled");
-  const [notes, setNotes]           = useState("");
-
-  // Material rows — initialised from treatment.plannedMaterials
-  const [matRows, setMatRows] = useState<MaterialRow[]>([]);
-
-  // Sync material rows when treatment changes or dialog opens
-  useMemo(() => {
-    if (!treatment?.plannedMaterials?.length) {
-      setMatRows([]);
-      return;
-    }
-    setMatRows(
-      treatment.plannedMaterials.map((m) => {
-        const inv = invItems.find((i) => i.id === m.itemId);
-        return {
-          itemId:   m.itemId,
-          itemName: m.itemName,
-          unit:     m.unit,
-          qty:      m.plannedQty,
-          stock:    inv?.quantity ?? 0,
-        };
-      }),
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treatment?.id, open]);
-
-  function updateRowQty(itemId: string, qty: number) {
-    setMatRows((prev) =>
-      prev.map((r) => (r.itemId === itemId ? { ...r, qty: Math.max(0, qty) } : r)),
-    );
-  }
-
-  function reset() {
-    setVisitDate(new Date()); setVisitTime("09:00");
-    setVStatus("scheduled"); setNotes(""); setMatRows([]);
-  }
-
-  function handleSave() {
-    if (!treatment) return;
-    const existing = getTreatmentVisits(treatment.id);
-    const newVisit = addVisit({
-      treatmentId:      treatment.id,
-      patientId:        treatment.patientId,
-      assignedDoctorId: treatment.assignedDoctorId,
-      visitNumber:      existing.length + 1,
-      date:             visitDate.toISOString().slice(0, 10),
-      time:             visitTime,
-      status:           visitStatus,
-      notes,
-    });
-
-    // Deduct materials from inventory when visit is completed
-    if (visitStatus === "completed") {
-      matRows.forEach((row) => {
-        if (row.qty > 0) {
-          useItem({
-            itemId:       row.itemId,
-            quantity:     row.qty,
-            usedByDoctorId: treatment.assignedDoctorId,
-            visitId:      newVisit.id,
-            treatmentId:  treatment.id,
-            note:         `${treatment.title} — ${t("treatments.visitNumber")}${existing.length + 1}`,
-          });
-        }
-      });
-    }
-
-    if (treatment.status === "planned") {
-      updateTreatment(treatment.id, { status: "in_progress" });
-    }
-    reset();
-    onOpenChange(false);
-    toast.success(
-      visitStatus === "completed"
-        ? t("treatments.visitCompleted")
-        : t("treatments.visitAdded"),
-    );
-  }
-
-  if (!treatment) return null;
-
-  const showMaterials = visitStatus === "completed" && matRows.length > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-primary" />
-            {t("treatments.addVisit")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="rounded-lg bg-muted px-3 py-2 text-sm space-y-0.5">
-          <p className="font-medium">{treatment.title}</p>
-          <DoctorBadge doctorId={treatment.assignedDoctorId} variant="compact" />
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t("appointments.date")}</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start text-left font-normal">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  {format(visitDate, "dd.MM.yyyy")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <CalendarPicker mode="single" selected={visitDate} onSelect={(d) => d && setVisitDate(d)} className="p-3 pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t("appointments.time")}</Label>
-            <Select value={visitTime} onValueChange={setVisitTime}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{TIME_SLOTS.map((ts) => <SelectItem key={ts} value={ts}>{ts}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>Holati</Label>
-            <Select value={visitStatus} onValueChange={(v) => setVStatus(v as "scheduled" | "completed")}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="scheduled">Rejalashtirilgan</SelectItem>
-                <SelectItem value="completed">Bajarildi</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* ── Materials section (only when completing) ──────────────────── */}
-          {showMaterials && (
-            <div className="space-y-2 rounded-lg border border-orange-200 dark:border-orange-800/50 bg-orange-50/50 dark:bg-orange-950/20 p-3">
-              <p className="text-xs font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5" />
-                {t("treatments.materialsUsed")}
-                <span className="font-normal text-muted-foreground">({t("treatments.adjustIfNeeded")})</span>
-              </p>
-              <div className="space-y-1">
-                {matRows.map((row) => (
-                  <div key={row.itemId} className="flex items-center gap-2 text-sm">
-                    <span className="flex-1 truncate text-xs">{row.itemName}</span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {t("treatments.stock")}: {row.stock}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{row.unit}</span>
-                    <Input
-                      type="number"
-                      className={cn(
-                        "h-7 w-16 text-xs text-center",
-                        row.qty > row.stock && "border-destructive",
-                      )}
-                      value={row.qty}
-                      min={0}
-                      step={0.5}
-                      onChange={(e) => updateRowQty(row.itemId, Number(e.target.value))}
-                    />
-                  </div>
-                ))}
-              </div>
-              {matRows.some((r) => r.qty > r.stock) && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  ⚠ {t("treatments.stockWarning")}
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label>{t("appointments.notes")}</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="..." />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>{t("patients.cancel")}</Button>
-          <Button onClick={handleSave}>{t("patients.save")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Treatment Payment Dialog ─────────────────────────────────────────────────
-
-function TreatmentPaymentDialog({
-  treatment, open, onOpenChange,
-}: {
-  treatment: Treatment | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const { addPayment, getTreatmentBalance } = useTreatments();
-
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("cash");
-  const [note, setNote]     = useState("");
-
-  const balance = useMemo(
-    () => treatment ? getTreatmentBalance(treatment.id) : { totalCost: 0, paid: 0, remaining: 0 },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [treatment?.id, getTreatmentBalance],
-  );
-
-  function reset() { setAmount(""); setMethod("cash"); setNote(""); }
-
-  function handleSave() {
-    if (!treatment || !amount) return;
-    addPayment({
-      treatmentId: treatment.id,
-      patientId:   treatment.patientId,
-      amount:      Number(amount),
-      date:        new Date().toISOString().slice(0, 10),
-      method,
-      note,
-    });
-    reset(); onOpenChange(false);
-    toast.success(t("treatments.paymentRecorded"));
-  }
-
-  if (!treatment) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Banknote className="h-4 w-4 text-primary" />
-            {t("patientProfile.acceptPayment")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="rounded-lg bg-muted px-3 py-2 text-sm space-y-1">
-          <p className="font-medium">{treatment.title}</p>
-          <div className="flex flex-wrap gap-3 text-xs">
-            <span className="text-muted-foreground">Jami: <strong className="text-foreground">{fmt(balance.totalCost)}</strong></span>
-            <span className="text-green-600">To'landi: <strong>{fmt(balance.paid)}</strong></span>
-            <span className="text-destructive font-medium">Qarz: <strong>{fmt(balance.remaining)}</strong></span>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t("patientProfile.paymentAmount")}</Label>
-            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(balance.remaining)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t("treatments.method")}</Label>
-            <Select value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cash">{t("treatments.cash")}</SelectItem>
-                <SelectItem value="card">{t("treatments.card")}</SelectItem>
-                <SelectItem value="transfer">{t("treatments.transfer")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t("appointments.notes")}</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="..." />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => { onOpenChange(false); reset(); }}>{t("patients.cancel")}</Button>
-          <Button onClick={handleSave} disabled={!amount}>{t("patients.save")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Edit Patient Dialog ──────────────────────────────────────────────────────
 
 function EditPatientDialog({
@@ -1484,13 +877,12 @@ function EditPatientDialog({
 // ─── Patient Header ───────────────────────────────────────────────────────────
 
 function PatientHeader({
-  patient, onAddAppointment, onAddTreatment, onAddReminder, onPayment,
+  patient, status, onAddAppointment, onAddTreatment,
 }: {
   patient: Patient;
+  status: TreatmentStatus;
   onAddAppointment: () => void;
   onAddTreatment: () => void;
-  onAddReminder: () => void;
-  onPayment: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -1510,7 +902,7 @@ function PatientHeader({
                 </a>
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge className={patientStatusColors[patient.status]}>{t(`patients.${patient.status}`)}</Badge>
+                <Badge className={patientStatusColors[status]}>{t(`patients.${status}`)}</Badge>
                 <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
               </div>
             </div>
@@ -1520,21 +912,279 @@ function PatientHeader({
               <CalendarPlus className="h-4 w-4" />
               <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
             </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddReminder}>
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("reminders.addFromProfile")}</span>
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddTreatment}>
+            <Button size="sm" className="gap-1.5" onClick={onAddTreatment}>
               <Stethoscope className="h-4 w-4" />
               <span className="hidden sm:inline">{t("patientProfile.addTreatment")}</span>
-            </Button>
-            <Button size="sm" className="gap-1.5" onClick={onPayment}>
-              <Banknote className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.acceptPayment")}</span>
             </Button>
           </div>
         </div>
       </CardContent>
+    </Card>
+  );
+}
+
+// ─── Gallery ──────────────────────────────────────────────────────────────────
+
+interface PendingUpload {
+  dataUrl: string;
+  name: string;
+  file: File;
+}
+
+function readFilesAsDataUrls(files: FileList): Promise<PendingUpload[]> {
+  const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+  return Promise.all(
+    imageFiles.map(
+      (file) =>
+        new Promise<PendingUpload>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ dataUrl: String(reader.result), name: file.name, file });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        }),
+    ),
+  );
+}
+
+function GalleryUploadDialog({
+  files, open, onOpenChange, onConfirm,
+}: {
+  files: PendingUpload[];
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onConfirm: (images: { file: File; date: string }[]) => void;
+}) {
+  const { t } = useTranslation();
+  const [date, setDate] = useState<Date>(new Date());
+
+  function handleOpenChange(v: boolean) {
+    if (v) setDate(new Date());
+    onOpenChange(v);
+  }
+
+  function handleConfirm() {
+    onConfirm(files.map((f) => ({ file: f.file, date: date.toISOString() })));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4 text-primary" />
+            {t("patientProfile.addImage")}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("patientProfile.imageDate")}</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {format(date, "dd.MM.yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarPicker mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {files.map((f, i) => (
+              <div key={i} className="aspect-square overflow-hidden rounded-lg border bg-muted">
+                <img src={f.dataUrl} alt={f.name} className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("patients.cancel")}</Button>
+          <Button onClick={handleConfirm} disabled={files.length === 0}>{t("patients.save")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ImageLightbox({
+  image, onOpenChange, onDelete,
+}: {
+  image: GalleryImage | null;
+  onOpenChange: (v: boolean) => void;
+  onDelete: (image: GalleryImage) => void;
+}) {
+  const { t } = useTranslation();
+  const caption = image ? format(new Date(image.date), "dd.MM.yyyy") : "";
+  return (
+    <Dialog open={!!image} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl p-3">
+        <DialogTitle className="sr-only">{caption}</DialogTitle>
+        {image && (
+          <div className="space-y-2">
+            <img
+              src={image.url}
+              alt={caption}
+              className="mx-auto max-h-[80vh] w-auto max-w-full rounded-lg object-contain"
+            />
+            <div className="flex items-center justify-between px-1">
+              <p className="text-sm text-muted-foreground">{caption}</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => onDelete(image)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {t("patientProfile.deleteImage")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GalleryTab({
+  patient, onAddImages, onDeleteImage,
+}: {
+  patient: Patient;
+  onAddImages: (images: { file: File; date: string }[]) => void | Promise<void>;
+  onDeleteImage: (imageId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingUpload[]>([]);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<GalleryImage | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<GalleryImage | null>(null);
+
+  function requestDelete(image: GalleryImage) {
+    setDeleteTarget(image);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+    onDeleteImage(deleteTarget.id);
+    if (lightboxImage?.id === deleteTarget.id) setLightboxImage(null);
+    setDeleteTarget(null);
+    toast.success(t("patientProfile.imageDeleted"));
+  }
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const read = await readFilesAsDataUrls(fileList);
+    if (read.length === 0) return;
+    setPendingFiles(read);
+    setUploadDialogOpen(true);
+  }
+
+  function handleConfirmUpload(images: { file: File; date: string }[]) {
+    onAddImages(images);
+    setUploadDialogOpen(false);
+    setPendingFiles([]);
+    toast.success(t("patientProfile.imageAdded"));
+  }
+
+  return (
+    <Card className="shadow-sm">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ImageIcon className="h-5 w-5" />
+          {t("patientProfile.gallery")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Dropzone */}
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            handleFiles(e.dataTransfer.files);
+          }}
+          className={cn(
+            "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+            dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-accent/30",
+          )}
+        >
+          <Upload className="h-8 w-8 text-muted-foreground/60" />
+          <p className="text-sm font-medium">{t("patientProfile.dropImages")}</p>
+          <p className="text-xs text-muted-foreground">{t("patientProfile.orBrowse")}</p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }}
+          />
+        </div>
+
+        {/* Grid */}
+        {patient.galleryImages.length > 0 && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {patient.galleryImages.map((img) => (
+              <div key={img.id} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(img)}
+                  className="h-full w-full"
+                >
+                  <img src={img.url} alt={format(new Date(img.date), "dd.MM.yyyy")} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); requestDelete(img); }}
+                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-destructive group-hover:opacity-100"
+                  aria-label={t("patientProfile.deleteImage")}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
+                  <p className="truncate text-left text-xs font-medium text-white">
+                    {format(new Date(img.date), "dd.MM.yyyy")}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+
+      <GalleryUploadDialog
+        files={pendingFiles}
+        open={uploadDialogOpen}
+        onOpenChange={setUploadDialogOpen}
+        onConfirm={handleConfirmUpload}
+      />
+      <ImageLightbox
+        image={lightboxImage}
+        onOpenChange={(v) => { if (!v) setLightboxImage(null); }}
+        onDelete={requestDelete}
+      />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("patientProfile.deleteImageConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("patientProfile.deleteImageConfirmDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("patients.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("patientProfile.deleteImage")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -1546,18 +1196,60 @@ export default function PatientProfile() {
   const navigate  = useNavigate();
   const { t }     = useTranslation();
 
-  const { getPatientTreatments, getPatientBalance } = useTreatments();
+  const { updatePatient } = usePatients();
+  const { getTreatmentPrescriptions } = usePrescriptions();
+  const queryClient = useQueryClient();
 
-  const [localPatient, setLocalPatient]           = useState<Patient | undefined>(() =>
-    mockPatients.find((p) => p.id === id),
-  );
-  const [teethData, setTeethData]                 = useState<ToothData[]>(createDefaultTeeth);
+  const { data: detail, isLoading: detailLoading } = usePatientDetail(id);
+  const localPatient = detail?.patient;
   const [editOpen, setEditOpen]                   = useState(false);
-  const [reminderOpen, setReminderOpen]           = useState(false);
   const [appointmentOpen, setAppointmentOpen]     = useState(false);
-  const [newTreatmentOpen, setNewTreatmentOpen]   = useState(false);
-  const [visitTreatment, setVisitTreatment]       = useState<Treatment | null>(null);
-  const [paymentTreatment, setPaymentTreatment]   = useState<Treatment | null>(null);
+  const [treatmentDialogOpen, setTreatmentDialogOpen] = useState(false);
+  const [editingTreatment, setEditingTreatment]   = useState<Treatment | null>(null);
+  const [prescriptionTreatment, setPrescriptionTreatment] = useState<Treatment | null>(null);
+  const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
+  const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
+  const [printingPrescription, setPrintingPrescription] = useState<{ prescription: Prescription; treatment: Treatment } | null>(null);
+
+  useEffect(() => {
+    if (!printingPrescription) return;
+    const timer = setTimeout(() => window.print(), 50);
+    const handleAfterPrint = () => setPrintingPrescription(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, [printingPrescription]);
+
+  const patientId       = localPatient?.id ?? "";
+  const allTreatments   = detail?.treatments ?? [];
+  const inProgressList  = allTreatments.filter((tr) => tr.status === "in_progress");
+  const completedList   = allTreatments.filter((tr) => tr.status === "completed");
+  const patientBalance  = detail?.balance ?? { totalCost: 0, paid: 0, remaining: 0 };
+  const patientStatus   = localPatient?.treatmentStatus ?? "in_progress";
+
+  const teethData = useMemo<ToothData[]>(() => {
+    return createDefaultTeeth().map((tooth) => {
+      const num = String(tooth.number);
+      const match = allTreatments.find((tr) => tr.teeth.includes(num));
+      if (!match) return tooth;
+      const status: ToothData["status"] =
+        match.status === "completed"
+          ? (match.treatmentType === "implant" ? "implant" : "treated")
+          : "decayed";
+      return { ...tooth, status, note: match.note ?? "" };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTreatments]);
+
+  if (detailLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground">{t("common.loading")}</p>
+      </div>
+    );
+  }
 
   if (!localPatient) {
     return (
@@ -1571,44 +1263,83 @@ export default function PatientProfile() {
     );
   }
 
-  const patientId       = localPatient.id;
-  const allTreatments   = getPatientTreatments(patientId);
-  const inProgressList  = allTreatments.filter((t) => t.status === "in_progress");
-  const plannedList     = allTreatments.filter((t) => t.status === "planned");
-  const completedList   = allTreatments.filter((t) => t.status === "completed");
-  const patientBalance  = getPatientBalance(patientId);
-
   const handleEditSave = (data: { fullName: string; phone: string; allergies: string; medicalNotes: string }) => {
-    setLocalPatient((prev) => prev ? {
-      ...prev,
+    updatePatient(patientId, {
       fullName:     data.fullName,
       phone:        data.phone,
       allergies:    data.allergies.split(",").map((a) => a.trim()).filter(Boolean),
       medicalNotes: data.medicalNotes,
-    } : prev);
+    });
     setEditOpen(false);
     toast.success(t("patientProfile.patientUpdated"));
   };
 
-  const handleTreatmentCreated = (treatment: Treatment) => {
-    const newStatus = treatmentToToothStatus[treatment.type];
-    setTeethData((prev) =>
-      prev.map((tooth) =>
-        treatment.toothNumbers.includes(tooth.id)
-          ? { ...tooth, status: newStatus as ToothData["status"] }
-          : tooth,
-      ),
+  const handleAddGalleryImages = async (items: { file: File; date: string }[]) => {
+    try {
+      for (const item of items) {
+        const fd = new FormData();
+        fd.append("user", patientId);
+        fd.append("image", item.file);
+        await apiFetch("/clinic/galleries/", { method: "POST", formData: fd });
+      }
+      queryClient.invalidateQueries({ queryKey: patientKeys.detail(patientId) });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Rasm yuklashda xatolik");
+    }
+  };
+
+  // Cache-only removal until the backend exposes a gallery delete endpoint
+  // (see BACKEND_SPEC.md).
+  const handleDeleteGalleryImage = (imageId: string) => {
+    queryClient.setQueryData<PatientDetailResult>(patientKeys.detail(patientId), (prev) =>
+      prev
+        ? {
+            ...prev,
+            patient: {
+              ...prev.patient,
+              galleryImages: prev.patient.galleryImages.filter((img) => img.id !== imageId),
+            },
+          }
+        : prev,
     );
   };
 
-  const handleHeaderPayment = () => {
-    const firstActive = allTreatments.find(
-      (t) => t.status !== "cancelled" && t.status !== "completed",
-    );
-    if (firstActive) setPaymentTreatment(firstActive);
-    else if (allTreatments.length > 0) setPaymentTreatment(allTreatments[0]);
-    else toast.info("Muolajalar mavjud emas");
-  };
+  function openNewTreatment() {
+    setEditingTreatment(null);
+    setTreatmentDialogOpen(true);
+  }
+
+  function openEditTreatment(tr: Treatment) {
+    setEditingTreatment(tr);
+    setTreatmentDialogOpen(true);
+  }
+
+  function openWritePrescription(tr: Treatment) {
+    setPrescriptionTreatment(tr);
+    setEditingPrescription(null);
+    setPrescriptionDialogOpen(true);
+  }
+
+  function openNewPrescriptionFromTab() {
+    setPrescriptionTreatment(null);
+    setEditingPrescription(null);
+    setPrescriptionDialogOpen(true);
+  }
+
+  function openEditPrescription(rx: Prescription, tr: Treatment) {
+    setPrescriptionTreatment(tr);
+    setEditingPrescription(rx);
+    setPrescriptionDialogOpen(true);
+  }
+
+  function handlePrintPrescription(prescription: Prescription, treatment: Treatment) {
+    setPrintingPrescription({ prescription, treatment });
+  }
+
+  const prescriptionsCount = allTreatments.reduce(
+    (sum, tr) => sum + getTreatmentPrescriptions(tr.id).length,
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -1629,31 +1360,33 @@ export default function PatientProfile() {
 
       <PatientHeader
         patient={localPatient}
+        status={patientStatus}
         onAddAppointment={() => setAppointmentOpen(true)}
-        onAddTreatment={() => setNewTreatmentOpen(true)}
-        onAddReminder={() => setReminderOpen(true)}
-        onPayment={handleHeaderPayment}
+        onAddTreatment={openNewTreatment}
       />
 
       {/* Dialogs */}
-      <AddReminderDialog open={reminderOpen} onOpenChange={setReminderOpen} lockedPatientId={localPatient.id} />
       <AddAppointmentDialog patient={localPatient} open={appointmentOpen} onOpenChange={setAppointmentOpen} />
-      <NewTreatmentDialog
+      <TreatmentDialog
         patientId={patientId}
-        open={newTreatmentOpen}
-        onOpenChange={setNewTreatmentOpen}
-        onCreated={handleTreatmentCreated}
+        treatment={editingTreatment}
+        open={treatmentDialogOpen}
+        onOpenChange={setTreatmentDialogOpen}
       />
-      <AddVisitDialog
-        treatment={visitTreatment}
-        open={visitTreatment !== null}
-        onOpenChange={(v) => { if (!v) setVisitTreatment(null); }}
+      <PrescriptionDialog
+        treatment={prescriptionTreatment}
+        treatments={allTreatments}
+        editing={editingPrescription}
+        open={prescriptionDialogOpen}
+        onOpenChange={(v) => { setPrescriptionDialogOpen(v); if (!v) setEditingPrescription(null); }}
       />
-      <TreatmentPaymentDialog
-        treatment={paymentTreatment}
-        open={paymentTreatment !== null}
-        onOpenChange={(v) => { if (!v) setPaymentTreatment(null); }}
-      />
+      {printingPrescription && (
+        <PrintablePrescription
+          prescription={printingPrescription.prescription}
+          treatment={printingPrescription.treatment}
+          patient={localPatient}
+        />
+      )}
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -1667,26 +1400,29 @@ export default function PatientProfile() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="prescriptions">
+            {t("prescriptions.title")}
+            {prescriptionsCount > 0 && (
+              <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5 py-0">
+                {prescriptionsCount}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="gallery">{t("patientProfile.gallery")}</TabsTrigger>
         </TabsList>
 
         {/* ── Overview ──────────────────────────────────────────────────── */}
         <TabsContent value="overview">
           <div className="mb-4">
-            <DentalChart teeth={teethData} onUpdate={setTeethData} />
+            <DentalChart teeth={teethData} onUpdate={() => {}} readOnly />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-4">
               <Card className="shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between text-base">
-                    <span className="flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-muted-foreground" />
-                      {t("patientProfile.financialSummary")}
-                    </span>
-                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={handleHeaderPayment}>
-                      <Banknote className="h-3.5 w-3.5" />{t("patientProfile.acceptPayment")}
-                    </Button>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    {t("patientProfile.financialSummary")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -1746,7 +1482,7 @@ export default function PatientProfile() {
               </Card>
               <Card className="shadow-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{t("patientProfile.totalVisits")}</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{t("treatments.title")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-2xl font-bold tabular-nums">{allTreatments.length}</p>
@@ -1756,7 +1492,7 @@ export default function PatientProfile() {
                 <Card className="shadow-sm border-orange-500/30">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-1.5">
-                      <Clock className="h-4 w-4" />Faol muolajalar
+                      <Clock className="h-4 w-4" />{t("treatments.activeTreatments")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -1773,11 +1509,11 @@ export default function PatientProfile() {
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-3 text-sm">
-                <span className="text-muted-foreground">{allTreatments.length} ta muolaja</span>
-                {inProgressList.length > 0 && <span className="text-orange-600 font-medium">{inProgressList.length} faol</span>}
-                {completedList.length > 0 && <span className="text-green-600">{completedList.length} yakunlangan</span>}
+                <span className="text-muted-foreground">{allTreatments.length} {t("treatments.title").toLowerCase()}</span>
+                {inProgressList.length > 0 && <span className="text-orange-600 font-medium">{inProgressList.length} {t("patients.in_progress").toLowerCase()}</span>}
+                {completedList.length > 0 && <span className="text-green-600">{completedList.length} {t("patients.completed").toLowerCase()}</span>}
               </div>
-              <Button size="sm" className="gap-1.5" onClick={() => setNewTreatmentOpen(true)}>
+              <Button size="sm" className="gap-1.5" onClick={openNewTreatment}>
                 <Plus className="h-4 w-4" />{t("treatments.newTreatment")}
               </Button>
             </div>
@@ -1786,7 +1522,7 @@ export default function PatientProfile() {
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
                 <Stethoscope className="h-14 w-14 opacity-15" />
                 <p className="text-sm">{t("treatments.noTreatments")}</p>
-                <Button size="sm" variant="outline" onClick={() => setNewTreatmentOpen(true)}>
+                <Button size="sm" variant="outline" onClick={openNewTreatment}>
                   <Plus className="mr-1.5 h-4 w-4" />{t("treatments.addFirst")}
                 </Button>
               </div>
@@ -1795,23 +1531,17 @@ export default function PatientProfile() {
                 {inProgressList.length > 0 && (
                   <section className="space-y-3">
                     <h3 className="text-sm font-semibold text-orange-600 flex items-center gap-1.5">
-                      <Clock className="h-4 w-4" />Davom etayotgan muolajalar ({inProgressList.length})
+                      <Clock className="h-4 w-4" />{t("treatments.activeTreatments")} ({inProgressList.length})
                     </h3>
                     <div className="space-y-3">
                       {inProgressList.map((tr) => (
-                        <TreatmentCard key={tr.id} treatment={tr} onAddVisit={setVisitTreatment} onAddPayment={setPaymentTreatment} />
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {plannedList.length > 0 && (
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-semibold text-blue-600 flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4" />Rejalashtirilgan ({plannedList.length})
-                    </h3>
-                    <div className="space-y-3">
-                      {plannedList.map((tr) => (
-                        <TreatmentCard key={tr.id} treatment={tr} onAddVisit={setVisitTreatment} onAddPayment={setPaymentTreatment} />
+                        <TreatmentCard
+                          key={tr.id}
+                          treatment={tr}
+                          onEdit={openEditTreatment}
+                          onWritePrescription={openWritePrescription}
+                          onPrintPrescription={handlePrintPrescription}
+                        />
                       ))}
                     </div>
                   </section>
@@ -1819,11 +1549,17 @@ export default function PatientProfile() {
                 {completedList.length > 0 && (
                   <section className="space-y-3">
                     <h3 className="text-sm font-semibold text-green-600 flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" />Yakunlangan ({completedList.length})
+                      <CheckCircle2 className="h-4 w-4" />{t("patients.completed")} ({completedList.length})
                     </h3>
                     <div className="space-y-3">
                       {completedList.map((tr) => (
-                        <TreatmentCard key={tr.id} treatment={tr} onAddVisit={setVisitTreatment} onAddPayment={setPaymentTreatment} />
+                        <TreatmentCard
+                          key={tr.id}
+                          treatment={tr}
+                          onEdit={openEditTreatment}
+                          onWritePrescription={openWritePrescription}
+                          onPrintPrescription={handlePrintPrescription}
+                        />
                       ))}
                     </div>
                   </section>
@@ -1833,30 +1569,19 @@ export default function PatientProfile() {
           </div>
         </TabsContent>
 
+        {/* ── Retseptlar ────────────────────────────────────────────────── */}
+        <TabsContent value="prescriptions">
+          <PrescriptionsTab
+            treatments={allTreatments}
+            onNew={openNewPrescriptionFromTab}
+            onEdit={openEditPrescription}
+            onPrint={handlePrintPrescription}
+          />
+        </TabsContent>
+
         {/* ── Gallery ───────────────────────────────────────────────────── */}
         <TabsContent value="gallery">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ImageIcon className="h-5 w-5" />
-                {t("patientProfile.gallery")} ({t("patientProfile.xray")})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {localPatient.galleryImages.map((_, idx) => (
-                  <div key={idx} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
-                    <div className="flex h-full w-full items-center justify-center">
-                      <div className="text-center">
-                        <ImageIcon className="mx-auto h-10 w-10 text-muted-foreground/40" />
-                        <p className="mt-2 text-xs text-muted-foreground">{t("patientProfile.xray")} {idx + 1}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <GalleryTab patient={localPatient} onAddImages={handleAddGalleryImages} onDeleteImage={handleDeleteGalleryImage} />
         </TabsContent>
       </Tabs>
     </div>

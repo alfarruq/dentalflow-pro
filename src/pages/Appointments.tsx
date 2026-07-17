@@ -16,9 +16,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { mockAppointments, Appointment, AppointmentStatus } from "@/data/mockAppointments";
-import { mockPatients } from "@/data/mockPatients";
+import { Appointment, AppointmentStatus } from "@/data/mockAppointments";
 import { useDoctors } from "@/contexts/DoctorsContext";
+import { usePatients } from "@/contexts/PatientsContext";
+import { useAppointmentsQuery, useCreateAppointment } from "@/hooks/useAppointments";
 import { DoctorFilterChips } from "@/components/DoctorFilterChips";
 import { DoctorBadge } from "@/components/DoctorBadge";
 import { DoctorSelect } from "@/components/DoctorSelect";
@@ -58,7 +59,9 @@ export default function Appointments() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { filterDoctorId, setLastUsedDoctorId } = useDoctors();
-  const [appointments, setAppointments] = useState<Appointment[]>(mockAppointments);
+  const { patients } = usePatients();
+  const { data: appointments = [] } = useAppointmentsQuery();
+  const createAppointment = useCreateAppointment();
   const [view, setView] = useState("today");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -122,10 +125,10 @@ export default function Appointments() {
   }, [doctorScopedAppointments, view, search, todayStr]);
 
   const filteredPatients = useMemo(() => {
-    if (!patientSearch.trim()) return mockPatients.slice(0, 10);
+    if (!patientSearch.trim()) return patients.slice(0, 10);
     const q = patientSearch.toLowerCase();
-    return mockPatients.filter((p) => p.fullName.toLowerCase().includes(q)).slice(0, 10);
-  }, [patientSearch]);
+    return patients.filter((p) => p.fullName.toLowerCase().includes(q)).slice(0, 10);
+  }, [patients, patientSearch]);
 
   const resetForm = () => {
     setPatientMode("existing");
@@ -140,36 +143,26 @@ export default function Appointments() {
     setPatientSearch("");
   };
 
-  const handleAdd = () => {
-    let patientName = "";
-    let phone = "";
-    let patientId = "";
-    if (patientMode === "existing") {
-      const patient = mockPatients.find((p) => p.id === selectedPatientId);
-      if (!patient) return;
-      patientName = patient.fullName;
-      phone = patient.phone;
-      patientId = patient.id;
-    } else {
-      if (!newName.trim()) return;
-      patientName = newName;
-      phone = newPhone;
-      patientId = `new-${Date.now()}`;
-    }
+  const handleAdd = async () => {
     if (!aptDate || !aptDoctorId) return;
-    const newApt: Appointment = {
-      id: `apt-${Date.now()}`,
-      patientId,
-      patientName,
-      phone,
-      date: format(aptDate, "yyyy-MM-dd"),
-      time: aptTime,
-      treatmentType: aptTreatment as any,
-      status: "pending",
-      notes: aptNotes,
-      assignedDoctorId: aptDoctorId,
-    };
-    setAppointments((prev) => [...prev, newApt].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)));
+    if (patientMode === "existing" && !selectedPatientId) return;
+    if (patientMode === "new" && (!newName.trim() || !newPhone.trim())) return;
+
+    try {
+      await createAppointment.mutateAsync({
+        patientId: patientMode === "existing" ? selectedPatientId : undefined,
+        newPatient:
+          patientMode === "new"
+            ? { fullName: newName.trim(), phone: newPhone.trim() }
+            : undefined,
+        doctorId: aptDoctorId,
+        date: format(aptDate, "yyyy-MM-dd"),
+        time: aptTime,
+        notes: aptNotes,
+      });
+    } catch {
+      return; // error toast handled by the mutation
+    }
     setLastUsedDoctorId(aptDoctorId);
     setDialogOpen(false);
     resetForm();

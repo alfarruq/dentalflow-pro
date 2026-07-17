@@ -2,9 +2,7 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 import {
   defaultServiceTemplates,
   type ServiceTemplate,
-  type ServiceMaterial,
 } from "@/data/mockServiceTemplates";
-import type { DentalTreatmentType } from "@/data/mockTreatments";
 
 const LS_KEY = "service_templates";
 
@@ -17,9 +15,6 @@ interface ServiceTemplatesContextType {
   updateTemplate: (id: string, data: Partial<Omit<ServiceTemplate, "id">>) => void;
   deleteTemplate: (id: string) => void;
   toggleActive: (id: string) => void;
-
-  /** All active templates that match a specific treatment type */
-  getTemplatesForType: (type: DentalTreatmentType) => ServiceTemplate[];
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
@@ -93,7 +88,7 @@ export function ServiceTemplatesProvider({ children }: { children: ReactNode }) 
   }, []);
 
   const getTemplatesForType = useCallback(
-    (type: DentalTreatmentType) => templates.filter((t) => t.treatmentType === type && t.active),
+    (type: TreatmentType) => templates.filter((t) => t.treatmentType === type && t.active),
     [templates],
   );
 
@@ -122,4 +117,4 @@ export function useServiceTemplates() {
 }
 
 // Re-export types for consumers
-export type { ServiceTemplate, ServiceMaterial };
+export type { ServiceTemplate };

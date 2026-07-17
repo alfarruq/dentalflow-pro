@@ -1,197 +1,100 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import {
-  mockTreatments,
-  mockTreatmentVisits,
-  mockTreatmentPayments,
-  Treatment,
-  TreatmentVisit,
-  TreatmentPayment,
-} from "@/data/mockTreatments";
-
-// ─── Context type ─────────────────────────────────────────────────────────────
-
-interface TreatmentBalance {
-  totalCost: number;
-  paid: number;
-  remaining: number;
-}
+import { createContext, useContext, useCallback, ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type { Treatment } from "@/data/mockTreatments";
+import { apiFetch } from "@/lib/api/client";
+import type { TreatmentTypeDto, TreatmentWriteDto } from "@/lib/api/dto";
+import { treatmentTypeIdForKey, type PatientDetailResult } from "@/lib/api/mappers";
+import { useAuth } from "@/contexts/AuthContext";
+import { patientKeys } from "@/contexts/PatientsContext";
 
 interface TreatmentContextType {
-  treatments: Treatment[];
-  visits: TreatmentVisit[];
-  payments: TreatmentPayment[];
-
-  // ── Treatment CRUD ──────────────────────────────────────────────────────────
-  addTreatment: (data: Omit<Treatment, "id">) => Treatment;
+  addTreatment: (data: Omit<Treatment, "id">) => Promise<void>;
+  /**
+   * Edit/complete update the local cache only until the backend exposes
+   * treatment update endpoints (see BACKEND_SPEC.md).
+   */
   updateTreatment: (id: string, data: Partial<Omit<Treatment, "id">>) => void;
-  deleteTreatment: (id: string) => void;
-
-  // ── Visit CRUD ──────────────────────────────────────────────────────────────
-  addVisit: (data: Omit<TreatmentVisit, "id">) => TreatmentVisit;
-  updateVisit: (id: string, data: Partial<Omit<TreatmentVisit, "id">>) => void;
-  deleteVisit: (id: string) => void;
-
-  // ── Payment CRUD ─────────────────────────────────────────────────────────────
-  addPayment: (data: Omit<TreatmentPayment, "id">) => TreatmentPayment;
-  deletePayment: (id: string) => void;
-
-  // ── Selectors ───────────────────────────────────────────────────────────────
-  getPatientTreatments: (patientId: string) => Treatment[];
-  getTreatmentVisits: (treatmentId: string) => TreatmentVisit[];
-  getTreatmentPayments: (treatmentId: string) => TreatmentPayment[];
-  getPatientPayments: (patientId: string) => TreatmentPayment[];
-  getTreatmentBalance: (treatmentId: string) => TreatmentBalance;
-  getPatientBalance: (patientId: string) => TreatmentBalance;
+  completeTreatment: (id: string) => void;
 }
-
-// ─── Utils ────────────────────────────────────────────────────────────────────
-
-function uid(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-// ─── Context + Provider ───────────────────────────────────────────────────────
 
 const TreatmentContext = createContext<TreatmentContextType | undefined>(undefined);
 
 export function TreatmentProvider({ children }: { children: ReactNode }) {
-  const [treatments, setTreatments] = useState<Treatment[]>(mockTreatments);
-  const [visits, setVisits]         = useState<TreatmentVisit[]>(mockTreatmentVisits);
-  const [payments, setPayments]     = useState<TreatmentPayment[]>(mockTreatmentPayments);
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
-  // ── Treatment CRUD ──────────────────────────────────────────────────────────
+  const { data: treatmentTypes = [] } = useQuery({
+    queryKey: ["treatment-types"],
+    queryFn: () => apiFetch<TreatmentTypeDto[]>("/clinic/treatment-types/"),
+    enabled: isAuthenticated,
+    staleTime: 10 * 60 * 1000,
+  });
 
-  const addTreatment = useCallback((data: Omit<Treatment, "id">): Treatment => {
-    const t: Treatment = { id: uid("t"), ...data };
-    setTreatments((prev) => [t, ...prev]);
-    return t;
-  }, []);
+  const addMutation = useMutation({
+    mutationFn: async (data: Omit<Treatment, "id">) => {
+      const body: TreatmentWriteDto = {
+        patient: Number(data.patientId),
+        doctor: data.doctorId ? Number(data.doctorId) : null,
+        treatment_type: treatmentTypeIdForKey(treatmentTypes, data.treatmentType) ?? 0,
+        total_treatment_cost: data.totalCost,
+        total_paid: data.amountPaid,
+        visit_number: 1,
+        tooth_number: data.teeth.length > 0 ? Number(data.teeth[0]) : 0,
+        start_date: data.date.slice(0, 10),
+        notes: data.note ?? "",
+      };
+      await apiFetch("/clinic/treatments/", { method: "POST", body });
+      return data.patientId;
+    },
+    onSuccess: (patientId) => {
+      queryClient.invalidateQueries({ queryKey: patientKeys.list });
+      queryClient.invalidateQueries({ queryKey: patientKeys.detail(patientId) });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const addTreatment = useCallback(
+    async (data: Omit<Treatment, "id">) => {
+      await addMutation.mutateAsync(data);
+    },
+    [addMutation],
+  );
+
+  /** Apply an updater to every loaded patient-detail cache that contains the treatment. */
+  const patchDetailCaches = useCallback(
+    (treatmentId: string, patch: (t: Treatment) => Treatment) => {
+      queryClient.setQueriesData<PatientDetailResult>(
+        { queryKey: patientKeys.list },
+        (prev) => {
+          if (!prev || !("treatments" in prev)) return prev;
+          if (!prev.treatments.some((t) => t.id === treatmentId)) return prev;
+          return {
+            ...prev,
+            treatments: prev.treatments.map((t) => (t.id === treatmentId ? patch(t) : t)),
+          };
+        },
+      );
+    },
+    [queryClient],
+  );
 
   const updateTreatment = useCallback(
     (id: string, data: Partial<Omit<Treatment, "id">>) => {
-      setTreatments((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-      );
+      patchDetailCaches(id, (t) => ({ ...t, ...data }));
     },
-    []
+    [patchDetailCaches],
   );
 
-  const deleteTreatment = useCallback((id: string) => {
-    setTreatments((prev) => prev.filter((t) => t.id !== id));
-    setVisits((prev) => prev.filter((v) => v.treatmentId !== id));
-    setPayments((prev) => prev.filter((p) => p.treatmentId !== id));
-  }, []);
-
-  // ── Visit CRUD ──────────────────────────────────────────────────────────────
-
-  const addVisit = useCallback((data: Omit<TreatmentVisit, "id">): TreatmentVisit => {
-    const v: TreatmentVisit = { id: uid("v"), ...data };
-    setVisits((prev) => [...prev, v]);
-    return v;
-  }, []);
-
-  const updateVisit = useCallback(
-    (id: string, data: Partial<Omit<TreatmentVisit, "id">>) => {
-      setVisits((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, ...data } : v))
-      );
+  const completeTreatment = useCallback(
+    (id: string) => {
+      patchDetailCaches(id, (t) => ({ ...t, status: "completed" }));
     },
-    []
-  );
-
-  const deleteVisit = useCallback((id: string) => {
-    setVisits((prev) => prev.filter((v) => v.id !== id));
-  }, []);
-
-  // ── Payment CRUD ─────────────────────────────────────────────────────────────
-
-  const addPayment = useCallback((data: Omit<TreatmentPayment, "id">): TreatmentPayment => {
-    const p: TreatmentPayment = { id: uid("pay"), ...data };
-    setPayments((prev) => [p, ...prev]);
-    return p;
-  }, []);
-
-  const deletePayment = useCallback((id: string) => {
-    setPayments((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  // ── Selectors ────────────────────────────────────────────────────────────────
-
-  const getPatientTreatments = useCallback(
-    (patientId: string) => treatments.filter((t) => t.patientId === patientId),
-    [treatments]
-  );
-
-  const getTreatmentVisits = useCallback(
-    (treatmentId: string) =>
-      visits
-        .filter((v) => v.treatmentId === treatmentId)
-        .sort((a, b) => a.visitNumber - b.visitNumber),
-    [visits]
-  );
-
-  const getTreatmentPayments = useCallback(
-    (treatmentId: string) =>
-      payments
-        .filter((p) => p.treatmentId === treatmentId)
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [payments]
-  );
-
-  const getPatientPayments = useCallback(
-    (patientId: string) =>
-      payments
-        .filter((p) => p.patientId === patientId)
-        .sort((a, b) => b.date.localeCompare(a.date)),
-    [payments]
-  );
-
-  const getTreatmentBalance = useCallback(
-    (treatmentId: string): TreatmentBalance => {
-      const treatment = treatments.find((t) => t.id === treatmentId);
-      const totalCost = treatment?.totalCost ?? 0;
-      const paid = payments
-        .filter((p) => p.treatmentId === treatmentId)
-        .reduce((sum, p) => sum + p.amount, 0);
-      return { totalCost, paid, remaining: totalCost - paid };
-    },
-    [treatments, payments]
-  );
-
-  const getPatientBalance = useCallback(
-    (patientId: string): TreatmentBalance => {
-      const patientTreatments = treatments.filter((t) => t.patientId === patientId);
-      const totalCost = patientTreatments.reduce((sum, t) => sum + t.totalCost, 0);
-      const paid = payments
-        .filter((p) => p.patientId === patientId)
-        .reduce((sum, p) => sum + p.amount, 0);
-      return { totalCost, paid, remaining: totalCost - paid };
-    },
-    [treatments, payments]
+    [patchDetailCaches],
   );
 
   return (
-    <TreatmentContext.Provider
-      value={{
-        treatments,
-        visits,
-        payments,
-        addTreatment,
-        updateTreatment,
-        deleteTreatment,
-        addVisit,
-        updateVisit,
-        deleteVisit,
-        addPayment,
-        deletePayment,
-        getPatientTreatments,
-        getTreatmentVisits,
-        getTreatmentPayments,
-        getPatientPayments,
-        getTreatmentBalance,
-        getPatientBalance,
-      }}
-    >
+    <TreatmentContext.Provider value={{ addTreatment, updateTreatment, completeTreatment }}>
       {children}
     </TreatmentContext.Provider>
   );

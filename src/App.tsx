@@ -5,21 +5,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DoctorsProvider } from "@/contexts/DoctorsContext";
-import { RemindersProvider } from "@/contexts/RemindersContext";
-import { InventoryProvider } from "@/contexts/InventoryContext";
+import { PatientsProvider } from "@/contexts/PatientsContext";
 import { TreatmentProvider } from "@/contexts/TreatmentContext";
+import { PrescriptionsProvider } from "@/contexts/PrescriptionsContext";
 import { ServiceTemplatesProvider } from "@/contexts/ServiceTemplatesContext";
-import { FinanceProvider } from "@/contexts/FinanceContext";
+import { PatientFormFieldsProvider } from "@/contexts/PatientFormFieldsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import PatientProfile from "./pages/PatientProfile";
 import Appointments from "./pages/Appointments";
-import Inventory from "./pages/Inventory";
-import Analytics from "./pages/Analytics";
-import Finance from "./pages/Finance";
-import Reminders from "./pages/Reminders";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -34,11 +30,11 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <DoctorsProvider>
-          <InventoryProvider>
+          <PatientsProvider>
           <TreatmentProvider>
+          <PrescriptionsProvider>
           <ServiceTemplatesProvider>
-          <FinanceProvider>
-          <RemindersProvider>
+          <PatientFormFieldsProvider>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route
@@ -51,10 +47,6 @@ const App = () => (
                         <Route path="/patients" element={<Patients />} />
                         <Route path="/patients/:id" element={<PatientProfile />} />
                         <Route path="/appointments" element={<Appointments />} />
-                        <Route path="/reminders" element={<Reminders />} />
-                        <Route path="/inventory" element={<Inventory />} />
-                        <Route path="/finance" element={<Finance />} />
-                        <Route path="/analytics" element={<Analytics />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
@@ -63,11 +55,11 @@ const App = () => (
                 }
               />
             </Routes>
-          </RemindersProvider>
-          </FinanceProvider>
+          </PatientFormFieldsProvider>
           </ServiceTemplatesProvider>
+          </PrescriptionsProvider>
           </TreatmentProvider>
-          </InventoryProvider>
+          </PatientsProvider>
           </DoctorsProvider>
         </AuthProvider>
       </BrowserRouter>

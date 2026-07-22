@@ -37,7 +37,52 @@
     "noRemindersToday": "На сегодня нет напоминаний",
     "overdueBadge": "{{count}} просрочено",
     "topDebtors": "Крупнейшие должники",
-    "topDebtorsSub": "Всего: {{total}} сум"
+    "topDebtorsSub": "Всего: {{total}} сум",
+    "nextAppointment": "Следующий визит",
+    "noUpcoming": "Больше визитов сегодня нет",
+    "viewPatient": "Смотреть пациента",
+    "goodDay": "Добрый день!",
+    "appointmentsWaiting": "Сегодня вас ждёт <1>{{num}}</1> приёмов.",
+    "planned": "запланировано",
+    "completedN": "{{count}} завершено",
+    "activePatients": "Активные пациенты",
+    "totalActive": "Всего активных",
+    "growthPositive": "+{{value}}% рост",
+    "freeTimeToday": "Свободное время сегодня",
+    "noFreeSlots": "Нет свободного времени",
+    "quickReminders": "Быстрые напоминания",
+    "clinicStats": "Статистика клиники",
+    "col_time": "Время",
+    "col_patient": "Пациент",
+    "col_treatment": "Тип процедуры",
+    "col_status": "Статус",
+    "addReminder": "Добавить напоминание",
+    "noReminders": "Нет напоминаний",
+    "weekdaysShort": [
+      "Пн",
+      "Вт",
+      "Ср",
+      "Чт",
+      "Пт",
+      "Сб",
+      "Вс"
+    ],
+    "reminder1Title": "Рентген-снимок для Сардора",
+    "reminder1Desc": "Подготовить сегодня до 16:00",
+    "reminder2Title": "Заказ материалов",
+    "reminder2Desc": "Подтвердить отчёт по инвентаризации",
+    "thisWeek": "На этой неделе",
+    "apptsCount": "{{count}} приёмов",
+    "weekdaysFull": [
+      "Понедельник",
+      "Вторник",
+      "Среда",
+      "Четверг",
+      "Пятница",
+      "Суббота",
+      "Воскресенье"
+    ],
+    "col_doctor": "Врач"
   },
   "patients": {
     "title": "Пациенты",
@@ -45,6 +90,7 @@
     "searchPlaceholder": "Поиск по имени...",
     "allStatuses": "Все статусы",
     "allTreatments": "Все виды лечения",
+    "currentPageOnlyNote": "* Фильтр по виду лечения применяется только к текущей странице",
     "fullName": "Полное имя",
     "phone": "Телефон",
     "phoneRequired": "Имя и номер телефона обязательны",
@@ -74,7 +120,8 @@
     "page": "Страница",
     "of": "из",
     "showing": "Показано",
-    "patients": "пациентов"
+    "patients": "пациентов",
+    "birthDate": "Дата рождения"
   },
   "patientProfile": {
     "backToList": "Назад к пациентам",
@@ -108,16 +155,15 @@
     "deleteImage": "Удалить",
     "deleteImageConfirmTitle": "Удалить изображение",
     "deleteImageConfirmDesc": "Вы уверены, что хотите удалить это изображение? Это действие нельзя отменить.",
-    "imageDeleted": "Изображение удалено"
+    "imageDeleted": "Изображение удалено",
+    "writePrescription": "Выписать рецепт"
   },
   "appointments": {
     "title": "Записи",
     "addAppointment": "Новая запись",
     "addAppointmentDesc": "Введите данные записи",
     "today": "Сегодня",
-    "week": "1 Неделя",
-    "tenDays": "10 Дней",
-    "month": "1 Месяц",
+    "all": "Все",
     "searchPatient": "Поиск пациента...",
     "noAppointments": "Записи не найдены",
     "appointments": "записей",
@@ -136,7 +182,24 @@
     "status_cancelled": "Отменено",
     "listView": "День",
     "gridView": "Неделя",
-    "monthView": "Месяц"
+    "monthView": "Месяц",
+    "daily": "День",
+    "weekly": "Неделя",
+    "newAppointmentTitle": "Новый приём",
+    "newAppointmentDesc": "Введите данные пациента и приёма",
+    "toothNumber": "Номер зуба",
+    "toothPlaceholder": "например: 16, 21, 46",
+    "selectTreatment": "Выберите тип лечения",
+    "phoneAutofill": "Заполнится при выборе пациента",
+    "notesPlaceholder": "Дополнительная заметка (необязательно)",
+    "noPatientsFound": "Пациенты не найдены",
+    "doctorLabel": "Врач",
+    "selectTeeth": "Выберите зуб",
+    "clear": "Очистить",
+    "noToothSelected": "Зуб не выбран",
+    "upperJaw": "Верхняя челюсть",
+    "lowerJaw": "Нижняя челюсть",
+    "close": "Закрыть"
   },
   "reminders": {
     "title": "Напоминания",
@@ -299,7 +362,7 @@
     "patientFormFieldsTitle": "Поля формы добавления пациента",
     "patientFormFieldsDesc": "Выберите, какие дополнительные поля отображаются в форме добавления пациента",
     "clinicInfo": "Информация о клинике",
-    "services": "Услуги и цены",
+    "services": "Виды лечения",
     "edit": "Редактировать",
     "saved": "Информация сохранена",
     "fullName": "Полное имя",
@@ -331,6 +394,8 @@
     "serviceCategory": "Категория",
     "servicePrice": "Цена",
     "serviceDuration": "Длительность",
+    "serviceTreatmentType": "Вид лечения",
+    "serviceActiveNotEditable": "Изменение этого статуса пока не поддерживается бэкендом",
     "min": "мин",
     "activeServices": "активных услуг",
     "noServices": "Услуги не найдены",
@@ -347,9 +412,10 @@
     "cat_endodontics": "Эндодонтия",
     "cat_orthodontics": "Ортодонтия",
     "tabDoctors": "Врачи",
-    "tabServices": "Услуги",
+    "tabServices": "Виды лечения",
     "tabMyInfo": "Мой профиль",
-    "tabClinic": "Клиника"
+    "tabClinic": "Клиника",
+    "servicesCount": "{{count}} услуг"
   },
   "login": {
     "title": "Вход в систему",
@@ -359,7 +425,16 @@
     "usernamePlaceholder": "Введите имя пользователя",
     "passwordPlaceholder": "Введите пароль",
     "submit": "Войти",
-    "error": "Неверный логин или пароль"
+    "signingIn": "Вход…",
+    "rememberMe": "Запомнить меня",
+    "forgotPassword": "Забыли пароль?",
+    "showPassword": "Показать пароль",
+    "hidePassword": "Скрыть пароль",
+    "error": "Неверный логин или пароль",
+    "validation": {
+      "usernameRequired": "Введите имя пользователя",
+      "passwordRequired": "Введите пароль"
+    }
   },
   "common": {
     "search": "Поиск...",
@@ -488,7 +563,81 @@
     "deleteConfirmTitle": "Удалить рецепт",
     "deleteConfirmDesc": "Вы уверены, что хотите удалить этот рецепт? Это действие нельзя отменить.",
     "noPrescriptions": "Пока нет рецептов",
-    "treatment": "Лечение",
-    "print": "Печать"
+    "print": "Печать",
+    "medicine": "Лекарство",
+    "dose": "Доза",
+    "frequency": "Приём",
+    "meal": "Еда",
+    "minutes": "Минут",
+    "minutesShort": "мин",
+    "searchMedicine": "Поиск лекарства...",
+    "noMedicineFound": "Лекарство не найдено",
+    "addCustomMedicine": "Добавить «{{name}}»",
+    "noMedicinesYet": "Лекарства не добавлены — нажмите «Добавить лекарство»",
+    "savePrescription": "Сохранить рецепт",
+    "notePlaceholder": "Дополнительные примечания для пациента...",
+    "categories": {
+      "antibiotic": "Антибиотики",
+      "analgesic": "Обезболивающие",
+      "topical": "Местные / полоскания",
+      "other": "Поддерживающие"
+    },
+    "forms": {
+      "tablet": "Таблетка",
+      "capsule": "Капсула",
+      "sachet": "Саше",
+      "gel": "Гель",
+      "spray": "Спрей",
+      "drops": "Капли",
+      "injection": "Инъекция",
+      "cream": "Крем"
+    },
+    "frequencies": {
+      "od": "1 раз/день",
+      "bid": "2 раза/день",
+      "tid": "3 раза/день",
+      "qid": "4 раза/день",
+      "q6h": "Каждые 6 часов",
+      "q8h": "Каждые 8 часов",
+      "q12h": "Каждые 12 часов",
+      "prn": "При необходимости"
+    },
+    "durationUnits": {
+      "days": "Дней",
+      "weeks": "Недель"
+    },
+    "mealRelations": {
+      "before": "До еды",
+      "after": "После еды",
+      "with": "Во время еды",
+      "none": "Без связи"
+    },
+    "prescription": "Рецепт"
+  },
+  "commandPalette": {
+    "placeholder": "Поиск пациентов, страниц, действий...",
+    "noResults": "Ничего не найдено.",
+    "groupPages": "Страницы",
+    "groupActions": "Действия",
+    "groupPatients": "Пациенты",
+    "goToDashboard": "Перейти на главную",
+    "goToPatients": "Перейти к пациентам",
+    "goToAppointments": "Перейти к визитам",
+    "goToProfile": "Перейти в профиль",
+    "actionNewPatient": "Новый пациент",
+    "actionNewAppointment": "Новый визит",
+    "actionNewPrescription": "Выписать рецепт"
+  },
+  "shortcutsHelp": {
+    "title": "Горячие клавиши",
+    "chordHint": "Нажмите G, затем букву",
+    "openPalette": "Открыть панель команд",
+    "newPatient": "Новый пациент",
+    "newAppointment": "Новый визит",
+    "openHelp": "Открыть это окно",
+    "goToDashboard": "Перейти на главную",
+    "goToPatients": "Перейти к пациентам",
+    "goToAppointments": "Перейти к визитам",
+    "goToProfile": "Перейти в профиль"
   }
 }

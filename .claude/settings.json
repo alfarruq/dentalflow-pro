@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(curl -s https://unimperialistic-willa-dowable.ngrok-free.dev/api/v1/calendars/appointments/?page=2 -H 'ngrok-skip-browser-warning: true')",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(s\\);console.log\\('page2 results:',j.results.length,'next:',j.next\\)}\\)\")",
+      "Bash(curl -s https://unimperialistic-willa-dowable.ngrok-free.dev/api/v1/calendars/appointments/20/ -H 'ngrok-skip-browser-warning: true' -w '\\\\n[HTTP %{http_code}]\\\\n')",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{try{const j=JSON.parse\\(s\\);console.log\\('count:',j.count\\);console.log\\('first result:',JSON.stringify\\(j.results?.[0]\\)\\)}catch\\(e\\){console.log\\('parse err',s.slice\\(0,200\\)\\)}}\\)\")",
+      "Bash(python3 -)"
+    ]
+  }
+}

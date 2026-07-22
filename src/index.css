@@ -133,6 +133,10 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
   body * {
     visibility: hidden;
   }
@@ -147,5 +151,8 @@
     left: 0;
     width: 100%;
     background: #fff;
+    /* Keep the light rules and muted labels of the sheet in the printout. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

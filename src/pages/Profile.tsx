@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  UserCircle, Phone, Mail, MapPin, Clock, Plus, Pencil, Trash2, Save,
-  Stethoscope, Building2, CalendarDays, BadgeCheck, DollarSign,
+  UserCircle, Phone, Mail, MapPin, Plus, Pencil, Trash2, Save,
+  Stethoscope, Building2, CalendarDays, BadgeCheck, DollarSign, Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,16 +17,17 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { DoctorsManagementCard } from "@/components/DoctorsManagementCard";
-import { useServiceTemplates, type ServiceTemplate } from "@/contexts/ServiceTemplatesContext";
+import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
 import { usePatientFormFields, type PatientFormFields } from "@/contexts/PatientFormFieldsContext";
 import { ListChecks, ImagePlus } from "lucide-react";
 import { loadClinicInfo, saveClinicInfo, type ClinicInfo } from "@/data/clinicInfo";
+import { authService } from "@/lib/api/auth.service";
+import type { UserMeDto, UserUpdateDto, TreatmentTypeDto } from "@/lib/api/dto";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,20 +42,36 @@ interface DoctorInfo {
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
-const defaultDoctor: DoctorInfo = {
-  fullName: "Dr. Admin",
-  specialty: "Umumiy stomatolog",
-  phone: "+998 90 123 45 67",
-  email: "doctor@dentaflow.uz",
-  experience: 8,
-  bio: "Yuqori malakali stomatolog. Implantologiya va estetik stomatologiya bo'yicha mutaxassis.",
-};
+const emptyDoctor: DoctorInfo = { fullName: "", specialty: "", phone: "", email: "", experience: 0, bio: "" };
+
+function toDoctorInfo(me: UserMeDto): DoctorInfo {
+  return {
+    fullName: me.full_name,
+    specialty: me.specialty ?? "",
+    phone: me.phone_number,
+    email: me.email ?? "",
+    experience: me.experience ?? 0,
+    bio: me.biography ?? "",
+  };
+}
+
+function toUserUpdateDto(d: DoctorInfo): UserUpdateDto {
+  return {
+    full_name: d.fullName,
+    phone_number: d.phone,
+    specialty: d.specialty || null,
+    email: d.email || null,
+    experience: d.experience || null,
+    biography: d.bio || null,
+  };
+}
 
 function formatPrice(n: number) {
   return n.toLocaleString("uz-UZ");
 }
 
-// ─── Service Template Dialog ──────────────────────────────────────────────────
+// ─── Service (treatment-type) Dialog ──────────────────────────────────────────
+// Backend treatment-types accept only { name, price } and support add-only.
 
 function ServiceTemplateDialog({
   open,
@@ -62,39 +80,29 @@ function ServiceTemplateDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  editing: ServiceTemplate | null;
+  editing: TreatmentTypeDto | null;
 }) {
   const { t } = useTranslation();
-  const { addTemplate, updateTemplate } = useServiceTemplates();
+  const { addTreatmentType, updateTreatmentType } = useServiceTemplates();
 
-  const [name, setName]           = useState("");
-  const [price, setPrice]         = useState("");
-  const [duration, setDuration]   = useState("45");
+  const [name, setName]   = useState("");
+  const [price, setPrice] = useState("");
 
-  // Populate form when editing
+  // Sync the form to the target each time the dialog opens (edit vs add).
   useEffect(() => {
-    if (editing) {
-      setName(editing.name);
-      setPrice(String(editing.price));
-      setDuration(String(editing.duration));
-    } else {
-      setName(""); setPrice(""); setDuration("45");
-    }
-  }, [editing, open]);
+    if (!open) return;
+    setName(editing?.name ?? "");
+    setPrice(editing?.price != null ? String(editing.price) : "");
+  }, [open, editing]);
 
   function handleSave() {
     if (!name.trim() || !price) return;
-    const data: Omit<ServiceTemplate, "id"> = {
-      name: name.trim(),
-      price: Number(price),
-      duration: Number(duration) || 30,
-      active: editing ? editing.active : true,
-    };
+    const data = { name: name.trim(), price: Number(price) };
     if (editing) {
-      updateTemplate(editing.id, data);
+      updateTreatmentType(editing.id, data);
       toast.success(t("profile.serviceUpdated"));
     } else {
-      addTemplate(data);
+      addTreatmentType(data);
       toast.success(t("profile.serviceAdded"));
     }
     onOpenChange(false);
@@ -102,15 +110,12 @@ function ServiceTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {editing ? t("profile.editService") : t("profile.addService")}
-          </DialogTitle>
+          <DialogTitle>{editing ? t("profile.editService") : t("profile.addService")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Name */}
           <div className="space-y-1.5">
             <Label>{t("profile.serviceName")}</Label>
             <Input
@@ -119,26 +124,14 @@ function ServiceTemplateDialog({
               placeholder={t("profile.serviceNamePlaceholder")}
             />
           </div>
-
-          {/* Price + Duration */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>{t("profile.servicePrice")} ({t("common.currency")})</Label>
-              <Input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="300 000"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("profile.serviceDuration")} ({t("profile.min")})</Label>
-              <Input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>{t("profile.servicePrice")} ({t("common.currency")})</Label>
+            <Input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="300 000"
+            />
           </div>
         </div>
 
@@ -157,33 +150,39 @@ function ServiceTemplateDialog({
 
 export default function Profile() {
   const { t } = useTranslation();
-  const { templates, toggleActive, deleteTemplate } = useServiceTemplates();
+  const { treatmentTypes, deleteTreatmentType } = useServiceTemplates();
   const { fields: patientFormFields, setFieldEnabled: setPatientFieldEnabled } = usePatientFormFields();
+  const queryClient = useQueryClient();
 
-  const [doctor, setDoctor] = useState<DoctorInfo>(() => {
-    const saved = localStorage.getItem("doctor_info");
-    return saved ? JSON.parse(saved) : defaultDoctor;
+  const { data: doctor, isLoading: doctorLoading } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: async () => toDoctorInfo(await authService.getMyProfile()),
   });
 
   const [clinic, setClinic] = useState<ClinicInfo>(loadClinicInfo);
 
   const [editingDoctor, setEditingDoctor]   = useState(false);
   const [editingClinic, setEditingClinic]   = useState(false);
-  const [doctorForm, setDoctorForm]         = useState<DoctorInfo>(doctor);
+  const [doctorForm, setDoctorForm]         = useState<DoctorInfo>(emptyDoctor);
   const [clinicForm, setClinicForm]         = useState<ClinicInfo>(clinic);
 
   const [serviceDialog, setServiceDialog]   = useState(false);
-  const [editingService, setEditingService] = useState<ServiceTemplate | null>(null);
-  const [deleteTarget, setDeleteTarget]     = useState<ServiceTemplate | null>(null);
+  const [editingService, setEditingService] = useState<TreatmentTypeDto | null>(null);
+  const [deleteTarget, setDeleteTarget]     = useState<TreatmentTypeDto | null>(null);
 
-  useEffect(() => { localStorage.setItem("doctor_info", JSON.stringify(doctor)); }, [doctor]);
   useEffect(() => { saveClinicInfo(clinic); }, [clinic]);
 
-  const handleSaveDoctor = () => {
-    setDoctor(doctorForm);
-    setEditingDoctor(false);
-    toast.success(t("profile.saved"));
-  };
+  const updateDoctorMutation = useMutation({
+    mutationFn: (data: DoctorInfo) => authService.updateMyProfile(toUserUpdateDto(data)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+      setEditingDoctor(false);
+      toast.success(t("profile.saved"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleSaveDoctor = () => updateDoctorMutation.mutate(doctorForm);
 
   const handleSaveClinic = () => {
     setClinic(clinicForm);
@@ -192,9 +191,7 @@ export default function Profile() {
   };
 
   const openAdd = () => { setEditingService(null); setServiceDialog(true); };
-  const openEdit = (s: ServiceTemplate) => { setEditingService(s); setServiceDialog(true); };
-
-  const activeCount = templates.filter((s) => s.active).length;
+  const openEdit = (tt: TreatmentTypeDto) => { setEditingService(tt); setServiceDialog(true); };
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
@@ -233,7 +230,7 @@ export default function Profile() {
                   {t("profile.services")}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {activeCount} {t("profile.activeServices")}
+                  {t("profile.servicesCount", { count: treatmentTypes.length })}
                 </p>
               </div>
               <Button size="sm" onClick={openAdd}>
@@ -242,38 +239,28 @@ export default function Profile() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {templates.length === 0 ? (
+                {treatmentTypes.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">{t("profile.noServices")}</p>
                 ) : (
-                  templates.map((svc) => (
-                    <div
-                      key={svc.id}
-                      className={`rounded-xl border border-border/50 transition-all ${!svc.active ? "opacity-50" : ""}`}
-                    >
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 p-3 sm:p-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium truncate">{svc.name}</span>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5" /> {svc.duration} {t("profile.min")}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                          <span className="font-semibold text-primary whitespace-nowrap">
-                            {formatPrice(svc.price)} {t("common.currency")}
+                  treatmentTypes.map((svc) => (
+                    <div key={svc.id} className="rounded-xl border border-border/50">
+                      <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
+                        <span className="min-w-0 flex-1 truncate font-medium">{svc.name}</span>
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          <span className="whitespace-nowrap font-semibold text-primary">
+                            {svc.price != null ? `${formatPrice(svc.price)} ${t("common.currency")}` : "—"}
                           </span>
-                          <div className="flex items-center gap-1">
-                            <Switch checked={svc.active} onCheckedChange={() => toggleActive(svc.id)} />
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(svc)}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteTarget(svc)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(svc)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => setDeleteTarget(svc)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -292,14 +279,18 @@ export default function Profile() {
             <UserCircle className="h-5 w-5 text-primary" />
             {t("profile.doctorInfo")}
           </CardTitle>
-          {!editingDoctor && (
+          {!editingDoctor && doctor && (
             <Button variant="ghost" size="sm" onClick={() => { setDoctorForm(doctor); setEditingDoctor(true); }}>
               <Pencil className="h-4 w-4 mr-1" /> {t("profile.edit")}
             </Button>
           )}
         </CardHeader>
         <CardContent>
-          {editingDoctor ? (
+          {doctorLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : editingDoctor ? (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>{t("profile.fullName")}</Label>
@@ -326,11 +317,14 @@ export default function Profile() {
                 <Textarea value={doctorForm.bio} onChange={(e) => setDoctorForm((p) => ({ ...p, bio: e.target.value }))} rows={3} />
               </div>
               <div className="sm:col-span-2 flex gap-2 justify-end">
-                <Button variant="ghost" onClick={() => setEditingDoctor(false)}>{t("patients.cancel")}</Button>
-                <Button onClick={handleSaveDoctor}><Save className="h-4 w-4 mr-1" />{t("patients.save")}</Button>
+                <Button variant="ghost" onClick={() => setEditingDoctor(false)} disabled={updateDoctorMutation.isPending}>{t("patients.cancel")}</Button>
+                <Button onClick={handleSaveDoctor} disabled={updateDoctorMutation.isPending}>
+                  {updateDoctorMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                  {t("patients.save")}
+                </Button>
               </div>
             </div>
-          ) : (
+          ) : doctor ? (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -356,7 +350,7 @@ export default function Profile() {
               </div>
               {doctor.bio && <p className="text-sm text-muted-foreground leading-relaxed">{doctor.bio}</p>}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
@@ -581,11 +575,7 @@ export default function Profile() {
       </Tabs>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────── */}
-      <ServiceTemplateDialog
-        open={serviceDialog}
-        onOpenChange={setServiceDialog}
-        editing={editingService}
-      />
+      <ServiceTemplateDialog open={serviceDialog} onOpenChange={setServiceDialog} editing={editingService} />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -601,7 +591,7 @@ export default function Profile() {
               className="bg-destructive text-destructive-foreground"
               onClick={() => {
                 if (deleteTarget) {
-                  deleteTemplate(deleteTarget.id);
+                  deleteTreatmentType(deleteTarget.id);
                   toast.success(t("profile.serviceDeleted"));
                   setDeleteTarget(null);
                 }

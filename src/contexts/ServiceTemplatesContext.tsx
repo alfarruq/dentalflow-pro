@@ -1,109 +1,78 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import {
-  defaultServiceTemplates,
-  type ServiceTemplate,
-} from "@/data/mockServiceTemplates";
+import { createContext, useContext, useCallback, ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { apiFetch } from "@/lib/api/client";
+import type { TreatmentTypeDto } from "@/lib/api/dto";
+import { useAuth } from "@/contexts/AuthContext";
 
-const LS_KEY = "service_templates";
+// The clinic's "services" are the backend's treatment-types (name + price),
+// exposed at /clinic/treatment-types/ with full list / create / update / delete.
+const treatmentTypesQueryKey = ["treatment-types"] as const;
 
-// ─── Context type ─────────────────────────────────────────────────────────────
+export interface TreatmentTypeInput {
+  name: string;
+  price: number;
+}
 
 interface ServiceTemplatesContextType {
-  templates: ServiceTemplate[];
-
-  addTemplate: (data: Omit<ServiceTemplate, "id">) => ServiceTemplate;
-  updateTemplate: (id: string, data: Partial<Omit<ServiceTemplate, "id">>) => void;
-  deleteTemplate: (id: string) => void;
-  toggleActive: (id: string) => void;
+  treatmentTypes: TreatmentTypeDto[];
+  isLoading: boolean;
+  addTreatmentType: (data: TreatmentTypeInput) => void;
+  updateTreatmentType: (id: number, data: TreatmentTypeInput) => void;
+  deleteTreatmentType: (id: number) => void;
 }
-
-// ─── Utils ────────────────────────────────────────────────────────────────────
-
-function load(): ServiceTemplate[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw) as ServiceTemplate[];
-  } catch {
-    // ignore parse errors
-  }
-  return defaultServiceTemplates;
-}
-
-function save(templates: ServiceTemplate[]) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(templates));
-  } catch {
-    // ignore storage errors
-  }
-}
-
-function uid() {
-  return `svc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-}
-
-// ─── Context ──────────────────────────────────────────────────────────────────
 
 const ServiceTemplatesContext = createContext<ServiceTemplatesContextType | undefined>(undefined);
 
 export function ServiceTemplatesProvider({ children }: { children: ReactNode }) {
-  const [templates, setTemplates] = useState<ServiceTemplate[]>(load);
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
 
-  function update(next: ServiceTemplate[]) {
-    setTemplates(next);
-    save(next);
-  }
+  const { data: treatmentTypes = [], isLoading } = useQuery({
+    queryKey: treatmentTypesQueryKey,
+    queryFn: () => apiFetch<TreatmentTypeDto[]>("/clinic/treatment-types/"),
+    enabled: isAuthenticated,
+    staleTime: 10 * 60 * 1000,
+  });
 
-  const addTemplate = useCallback((data: Omit<ServiceTemplate, "id">): ServiceTemplate => {
-    const t: ServiceTemplate = { id: uid(), ...data };
-    setTemplates((prev) => {
-      const next = [t, ...prev];
-      save(next);
-      return next;
-    });
-    return t;
-  }, []);
+  // Update the cached list directly on success so the UI reflects each mutation
+  // immediately, without depending on a refetch. The list is small and the API
+  // returns the full row, so the cache stays authoritative.
+  const setCache = (updater: (rows: TreatmentTypeDto[]) => TreatmentTypeDto[]) =>
+    queryClient.setQueryData<TreatmentTypeDto[]>(treatmentTypesQueryKey, (old) => updater(old ?? []));
+  const onError = (err: Error) => toast.error(err.message);
 
-  const updateTemplate = useCallback((id: string, data: Partial<Omit<ServiceTemplate, "id">>) => {
-    setTemplates((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, ...data } : t));
-      save(next);
-      return next;
-    });
-  }, []);
+  const addMutation = useMutation({
+    mutationFn: (data: TreatmentTypeInput) =>
+      apiFetch<TreatmentTypeDto>("/clinic/treatment-types/", { method: "POST", body: data }),
+    onSuccess: (created) => setCache((rows) => [...rows, created]),
+    onError,
+  });
 
-  const deleteTemplate = useCallback((id: string) => {
-    setTemplates((prev) => {
-      const next = prev.filter((t) => t.id !== id);
-      save(next);
-      return next;
-    });
-  }, []);
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: TreatmentTypeInput }) =>
+      apiFetch<TreatmentTypeDto>(`/clinic/treatment-types/${id}/`, { method: "PATCH", body: data }),
+    onSuccess: (updated) => setCache((rows) => rows.map((r) => (r.id === updated.id ? updated : r))),
+    onError,
+  });
 
-  const toggleActive = useCallback((id: string) => {
-    setTemplates((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, active: !t.active } : t));
-      save(next);
-      return next;
-    });
-  }, []);
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<void>(`/clinic/treatment-types/${id}/`, { method: "DELETE" }),
+    onSuccess: (_result, id) => setCache((rows) => rows.filter((r) => r.id !== id)),
+    onError,
+  });
 
-  const getTemplatesForType = useCallback(
-    (type: TreatmentType) => templates.filter((t) => t.treatmentType === type && t.active),
-    [templates],
+  const addTreatmentType = useCallback((data: TreatmentTypeInput) => addMutation.mutate(data), [addMutation]);
+  const updateTreatmentType = useCallback(
+    (id: number, data: TreatmentTypeInput) => updateMutation.mutate({ id, data }),
+    [updateMutation],
   );
-
-  void update; // suppress unused warning — used via setTemplates+save pattern above
+  const deleteTreatmentType = useCallback((id: number) => deleteMutation.mutate(id), [deleteMutation]);
 
   return (
     <ServiceTemplatesContext.Provider
-      value={{
-        templates,
-        addTemplate,
-        updateTemplate,
-        deleteTemplate,
-        toggleActive,
-        getTemplatesForType,
-      }}
+      value={{ treatmentTypes, isLoading, addTreatmentType, updateTreatmentType, deleteTreatmentType }}
     >
       {children}
     </ServiceTemplatesContext.Provider>
@@ -115,6 +84,3 @@ export function useServiceTemplates() {
   if (!ctx) throw new Error("useServiceTemplates must be used within ServiceTemplatesProvider");
   return ctx;
 }
-
-// Re-export types for consumers
-export type { ServiceTemplate };

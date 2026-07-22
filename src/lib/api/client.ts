@@ -3,18 +3,58 @@ import { API_BASE_URL } from "@/config/env";
 const ACCESS_TOKEN_KEY = "dentaflow-access-token";
 const REFRESH_TOKEN_KEY = "dentaflow-refresh-token";
 
+/**
+ * Token persistence is intentionally funnelled through this single object so it
+ * stays the *only* place that knows how tokens are stored. That keeps the future
+ * migration to HttpOnly cookies to one file: the rest of the app only ever calls
+ * getAccess/getRefresh/set/clear.
+ *
+ * "Remember me" selects the backing storage:
+ *   - remember=true  → localStorage  (survives browser restart)
+ *   - remember=false → sessionStorage (cleared when the tab closes)
+ * Reads probe both so a session started either way keeps working.
+ */
 export const tokenStore = {
-  getAccess: () => localStorage.getItem(ACCESS_TOKEN_KEY),
-  getRefresh: () => localStorage.getItem(REFRESH_TOKEN_KEY),
-  set(access: string, refresh: string) {
-    localStorage.setItem(ACCESS_TOKEN_KEY, access);
-    localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+  getAccess: () =>
+    localStorage.getItem(ACCESS_TOKEN_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_KEY),
+  getRefresh: () =>
+    localStorage.getItem(REFRESH_TOKEN_KEY) ?? sessionStorage.getItem(REFRESH_TOKEN_KEY),
+  set(access: string, refresh: string, remember: boolean = true) {
+    // Write to the chosen store and clear the other so tokens never live in both.
+    const target = remember ? localStorage : sessionStorage;
+    const other = remember ? sessionStorage : localStorage;
+    target.setItem(ACCESS_TOKEN_KEY, access);
+    target.setItem(REFRESH_TOKEN_KEY, refresh);
+    other.removeItem(ACCESS_TOKEN_KEY);
+    other.removeItem(REFRESH_TOKEN_KEY);
   },
   clear() {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   },
 };
+
+/**
+ * The logged-in user's own id, read from the access token's `user_id` claim
+ * (confirmed present on this backend's JWTs). Not returned by /me/, and
+ * needed for self-service PATCH /authentication/update/<id>/ calls — decoding
+ * client-side is safe here since it's only used to pick the request URL, not
+ * for any security decision (the backend independently authorizes the call).
+ */
+export function getCurrentUserId(): string | null {
+  const token = tokenStore.getAccess();
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const claims = JSON.parse(json) as { user_id?: string };
+    return claims.user_id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /** Normalized error shape for the backend's {message, message_key, errors} format. */
 export class ApiError extends Error {

@@ -37,7 +37,52 @@
     "noRemindersToday": "No reminders for today",
     "overdueBadge": "{{count}} overdue",
     "topDebtors": "Top Debtors",
-    "topDebtorsSub": "Total: {{total}} UZS"
+    "topDebtorsSub": "Total: {{total}} UZS",
+    "nextAppointment": "Next appointment",
+    "noUpcoming": "No more appointments today",
+    "viewPatient": "View patient",
+    "goodDay": "Good day!",
+    "appointmentsWaiting": "You have <1>{{num}}</1> appointments waiting today.",
+    "planned": "planned",
+    "completedN": "{{count}} completed",
+    "activePatients": "Active patients",
+    "totalActive": "Total active",
+    "growthPositive": "+{{value}}% growth",
+    "freeTimeToday": "Free time today",
+    "noFreeSlots": "No free slots",
+    "quickReminders": "Quick reminders",
+    "clinicStats": "Clinic statistics",
+    "col_time": "Time",
+    "col_patient": "Patient",
+    "col_treatment": "Treatment",
+    "col_status": "Status",
+    "addReminder": "Add reminder",
+    "noReminders": "No reminders",
+    "weekdaysShort": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+      "Sun"
+    ],
+    "reminder1Title": "X-ray result for Sardor",
+    "reminder1Desc": "Prepare by 16:00 today",
+    "reminder2Title": "Materials order",
+    "reminder2Desc": "Confirm the inventory report",
+    "thisWeek": "This week",
+    "apptsCount": "{{count}} appointments",
+    "weekdaysFull": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday"
+    ],
+    "col_doctor": "Doctor"
   },
   "patients": {
     "title": "Patients",
@@ -45,6 +90,7 @@
     "searchPlaceholder": "Search by name...",
     "allStatuses": "All Statuses",
     "allTreatments": "All Treatments",
+    "currentPageOnlyNote": "* Treatment-type filter only applies to patients on the current page",
     "fullName": "Full Name",
     "phone": "Phone Number",
     "phoneRequired": "Name and phone number are required",
@@ -74,7 +120,8 @@
     "page": "Page",
     "of": "of",
     "showing": "Showing",
-    "patients": "patients"
+    "patients": "patients",
+    "birthDate": "Birth date"
   },
   "patientProfile": {
     "backToList": "Back to Patients",
@@ -108,16 +155,15 @@
     "deleteImage": "Delete",
     "deleteImageConfirmTitle": "Delete image",
     "deleteImageConfirmDesc": "Are you sure you want to delete this image? This action cannot be undone.",
-    "imageDeleted": "Image deleted"
+    "imageDeleted": "Image deleted",
+    "writePrescription": "Write prescription"
   },
   "appointments": {
     "title": "Appointments",
     "addAppointment": "New Appointment",
     "addAppointmentDesc": "Enter appointment details",
     "today": "Today",
-    "week": "1 Week",
-    "tenDays": "10 Days",
-    "month": "1 Month",
+    "all": "All",
     "searchPatient": "Search patient...",
     "noAppointments": "No appointments found",
     "appointments": "appointments",
@@ -136,7 +182,24 @@
     "status_cancelled": "Cancelled",
     "listView": "Day",
     "gridView": "Week",
-    "monthView": "Month"
+    "monthView": "Month",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "newAppointmentTitle": "New appointment",
+    "newAppointmentDesc": "Enter patient and appointment details",
+    "toothNumber": "Tooth number",
+    "toothPlaceholder": "e.g. 16, 21, 46",
+    "selectTreatment": "Select treatment type",
+    "phoneAutofill": "Filled when a patient is selected",
+    "notesPlaceholder": "Additional note (optional)",
+    "noPatientsFound": "No patients found",
+    "doctorLabel": "Doctor",
+    "selectTeeth": "Select teeth",
+    "clear": "Clear",
+    "noToothSelected": "No teeth selected",
+    "upperJaw": "Upper jaw",
+    "lowerJaw": "Lower jaw",
+    "close": "Close"
   },
   "reminders": {
     "title": "Reminders",
@@ -299,7 +362,7 @@
     "patientFormFieldsTitle": "Add Patient Form Fields",
     "patientFormFieldsDesc": "Choose which optional fields appear on the Add Patient form",
     "clinicInfo": "Clinic Information",
-    "services": "Services & Pricing",
+    "services": "Treatment types",
     "edit": "Edit",
     "saved": "Information saved",
     "fullName": "Full Name",
@@ -331,6 +394,8 @@
     "serviceCategory": "Category",
     "servicePrice": "Price",
     "serviceDuration": "Duration",
+    "serviceTreatmentType": "Treatment Type",
+    "serviceActiveNotEditable": "Toggling this isn't supported by the backend yet",
     "min": "min",
     "activeServices": "active services",
     "noServices": "No services found",
@@ -347,9 +412,10 @@
     "cat_endodontics": "Endodontics",
     "cat_orthodontics": "Orthodontics",
     "tabDoctors": "Doctors",
-    "tabServices": "Services",
+    "tabServices": "Treatment types",
     "tabMyInfo": "My Profile",
-    "tabClinic": "Clinic"
+    "tabClinic": "Clinic",
+    "servicesCount": "{{count}} services"
   },
   "login": {
     "title": "Sign In",
@@ -359,7 +425,16 @@
     "usernamePlaceholder": "Enter username",
     "passwordPlaceholder": "Enter password",
     "submit": "Sign In",
-    "error": "Invalid username or password"
+    "signingIn": "Signing in…",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "error": "Invalid username or password",
+    "validation": {
+      "usernameRequired": "Username is required",
+      "passwordRequired": "Password is required"
+    }
   },
   "common": {
     "search": "Search...",
@@ -488,7 +563,81 @@
     "deleteConfirmTitle": "Delete prescription",
     "deleteConfirmDesc": "Are you sure you want to delete this prescription? This action cannot be undone.",
     "noPrescriptions": "No prescriptions yet",
-    "treatment": "Treatment",
-    "print": "Print"
+    "print": "Print",
+    "medicine": "Medicine",
+    "dose": "Dose",
+    "frequency": "Frequency",
+    "meal": "Meal",
+    "minutes": "Minutes",
+    "minutesShort": "min",
+    "searchMedicine": "Search medicine...",
+    "noMedicineFound": "No medicine found",
+    "addCustomMedicine": "Add \"{{name}}\"",
+    "noMedicinesYet": "No medicines yet — click “Add Medication”",
+    "savePrescription": "Save Prescription",
+    "notePlaceholder": "Additional notes for the patient...",
+    "categories": {
+      "antibiotic": "Antibiotics",
+      "analgesic": "Pain / inflammation",
+      "topical": "Topical / rinses",
+      "other": "Supportive"
+    },
+    "forms": {
+      "tablet": "Tablet",
+      "capsule": "Capsule",
+      "sachet": "Sachet",
+      "gel": "Gel",
+      "spray": "Spray",
+      "drops": "Drops",
+      "injection": "Injection",
+      "cream": "Cream"
+    },
+    "frequencies": {
+      "od": "1 time/day",
+      "bid": "2 times/day",
+      "tid": "3 times/day",
+      "qid": "4 times/day",
+      "q6h": "Every 6 hours",
+      "q8h": "Every 8 hours",
+      "q12h": "Every 12 hours",
+      "prn": "When needed"
+    },
+    "durationUnits": {
+      "days": "Days",
+      "weeks": "Weeks"
+    },
+    "mealRelations": {
+      "before": "Before meal",
+      "after": "After meal",
+      "with": "With meal",
+      "none": "No relation"
+    },
+    "prescription": "Prescription"
+  },
+  "commandPalette": {
+    "placeholder": "Search patients, pages, actions...",
+    "noResults": "No results found.",
+    "groupPages": "Pages",
+    "groupActions": "Actions",
+    "groupPatients": "Patients",
+    "goToDashboard": "Go to Dashboard",
+    "goToPatients": "Go to Patients",
+    "goToAppointments": "Go to Appointments",
+    "goToProfile": "Go to Profile",
+    "actionNewPatient": "New Patient",
+    "actionNewAppointment": "New Appointment",
+    "actionNewPrescription": "Write prescription"
+  },
+  "shortcutsHelp": {
+    "title": "Keyboard shortcuts",
+    "chordHint": "Press G, then a letter",
+    "openPalette": "Open command palette",
+    "newPatient": "New patient",
+    "newAppointment": "New appointment",
+    "openHelp": "Open this dialog",
+    "goToDashboard": "Go to Dashboard",
+    "goToPatients": "Go to Patients",
+    "goToAppointments": "Go to Appointments",
+    "goToProfile": "Go to Profile"
   }
 }

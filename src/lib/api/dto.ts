@@ -24,6 +24,16 @@ export interface UserMeDto {
   image: string | null;
 }
 
+/** PATCH /authentication/update/<id>/ body (image is read-only, set via upload elsewhere). */
+export interface UserUpdateDto {
+  full_name: string;
+  phone_number: string;
+  specialty?: string | null;
+  email?: string | null;
+  experience?: number | null;
+  biography?: string | null;
+}
+
 // ─── Doctors ──────────────────────────────────────────────────────────────────
 
 export interface DoctorDto {
@@ -39,6 +49,16 @@ export interface DoctorWriteDto {
   specialty?: string;
   phone_number: string;
   email?: string;
+}
+
+// ─── Pagination ───────────────────────────────────────────────────────────────
+
+/** Standard DRF PageNumberPagination envelope (confirmed against the live API). */
+export interface PaginatedDto<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
 }
 
 // ─── Patients ─────────────────────────────────────────────────────────────────
@@ -63,6 +83,11 @@ export interface PatientWriteDto {
   phone_number: string;
   /** Doctor user id. */
   doctor?: number | null;
+  /** "yyyy-MM-dd" */
+  birth_date?: string;
+  address?: string;
+  /** Workplace / place of study. */
+  office?: string;
 }
 
 export interface PatientDetailTreatmentDto {
@@ -81,6 +106,10 @@ export interface PatientDetailDto {
   full_name: string;
   phone_number: string;
   doctor: string | null;
+  /** Not yet returned by the detail serializer — present once the backend adds it. */
+  address?: string | null;
+  /** Workplace / place of study; see `address`. */
+  office?: string | null;
   image: string | null;
   age: number | null;
   status: string | null;
@@ -97,6 +126,7 @@ export interface PatientDetailDto {
 export interface TreatmentTypeDto {
   id: number;
   name: string;
+  price: number | null;
 }
 
 export interface TreatmentWriteDto {
@@ -116,8 +146,14 @@ export interface TreatmentWriteDto {
 
 export interface AppointmentDto {
   id: number;
-  /** Patient full name (backend returns the display string, not an id). */
+  /** Patient row id (FK), or null. */
+  patient_id: number | null;
+  /** Patient full name (display string). */
   patient: string;
+  /** Patient phone number, or null. */
+  phone_number: string | null;
+  /** Doctor row id (FK), or null. */
+  doctor_id: number | null;
   /** Doctor full name. */
   doctor: string;
   /** "yyyy-MM-dd" */
@@ -139,5 +175,41 @@ export interface AppointmentWriteDto {
   date: string;
   time: string;
   notes?: string;
-  status?: string;
+  /** Backend enum — new appointments default to "in_progress". */
+  status?: "in_progress" | "completed";
+}
+
+// ─── Recipes (prescriptions) ──────────────────────────────────────────────────
+
+export interface MedicineWriteDto {
+  name: string;
+  /** Dose amount as a whole number (the unit lives in `type`). */
+  dose: number;
+  /** Dose form key — "tablet" | "capsule" | … */
+  type: string;
+  /** Frequency key — "od" | "bid" | "tid" | … */
+  frequency: string;
+  /** Total duration in DAYS (weeks are normalised before sending). */
+  duration: number;
+  /** Meal relation key — "before" | "after" | "with" | "none" */
+  meal: string;
+  /** Offset from the meal, in minutes (0 when not applicable). */
+  minutes: number;
+}
+
+export interface RecipeWriteDto {
+  patient?: number;
+  doctor?: number;
+  notes?: string;
+  /** The only field the API marks required. */
+  medicines: MedicineWriteDto[];
+}
+
+export interface RecipeDto {
+  id: number;
+  /** Display name, not an id (same shape quirk as appointments). */
+  patient: string;
+  doctor: string;
+  notes: string | null;
+  medicines: (MedicineWriteDto & { id: number })[];
 }

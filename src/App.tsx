@@ -10,7 +10,10 @@ import { TreatmentProvider } from "@/contexts/TreatmentContext";
 import { PrescriptionsProvider } from "@/contexts/PrescriptionsContext";
 import { ServiceTemplatesProvider } from "@/contexts/ServiceTemplatesContext";
 import { PatientFormFieldsProvider } from "@/contexts/PatientFormFieldsContext";
+import { QuickCreateProvider } from "@/contexts/QuickCreateContext";
+import { KeyboardShortcutsProvider } from "@/contexts/KeyboardShortcutsContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { GuestRoute } from "@/components/GuestRoute";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
@@ -35,8 +38,17 @@ const App = () => (
           <PrescriptionsProvider>
           <ServiceTemplatesProvider>
           <PatientFormFieldsProvider>
+          <QuickCreateProvider>
+          <KeyboardShortcutsProvider>
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route
+                path="/login"
+                element={
+                  <GuestRoute>
+                    <Login />
+                  </GuestRoute>
+                }
+              />
               <Route
                 path="/*"
                 element={
@@ -55,6 +67,8 @@ const App = () => (
                 }
               />
             </Routes>
+          </KeyboardShortcutsProvider>
+          </QuickCreateProvider>
           </PatientFormFieldsProvider>
           </ServiceTemplatesProvider>
           </PrescriptionsProvider>

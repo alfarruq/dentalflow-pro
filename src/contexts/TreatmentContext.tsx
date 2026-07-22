@@ -2,14 +2,24 @@ import { createContext, useContext, useCallback, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Treatment } from "@/data/mockTreatments";
+import type { TreatmentType } from "@/data/mockPatients";
 import { apiFetch } from "@/lib/api/client";
 import type { TreatmentTypeDto, TreatmentWriteDto } from "@/lib/api/dto";
 import { treatmentTypeIdForKey, type PatientDetailResult } from "@/lib/api/mappers";
 import { useAuth } from "@/contexts/AuthContext";
 import { patientKeys } from "@/contexts/PatientsContext";
 
+/**
+ * Treatment creation input. Prefer `treatmentTypeId` (a real /clinic/treatment-types
+ * row id); `treatmentType` (frontend key) is mapped to an id only as a fallback.
+ */
+export type NewTreatmentInput = Omit<Treatment, "id" | "treatmentType"> & {
+  treatmentType?: TreatmentType;
+  treatmentTypeId?: number;
+};
+
 interface TreatmentContextType {
-  addTreatment: (data: Omit<Treatment, "id">) => Promise<void>;
+  addTreatment: (data: NewTreatmentInput) => Promise<void>;
   /**
    * Edit/complete update the local cache only until the backend exposes
    * treatment update endpoints (see BACKEND_SPEC.md).
@@ -32,11 +42,14 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (data: Omit<Treatment, "id">) => {
+    mutationFn: async (data: NewTreatmentInput) => {
       const body: TreatmentWriteDto = {
         patient: Number(data.patientId),
         doctor: data.doctorId ? Number(data.doctorId) : null,
-        treatment_type: treatmentTypeIdForKey(treatmentTypes, data.treatmentType) ?? 0,
+        treatment_type:
+          data.treatmentTypeId ??
+          (data.treatmentType ? treatmentTypeIdForKey(treatmentTypes, data.treatmentType) : undefined) ??
+          0,
         total_treatment_cost: data.totalCost,
         total_paid: data.amountPaid,
         visit_number: 1,
@@ -55,7 +68,7 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
   });
 
   const addTreatment = useCallback(
-    async (data: Omit<Treatment, "id">) => {
+    async (data: NewTreatmentInput) => {
       await addMutation.mutateAsync(data);
     },
     [addMutation],

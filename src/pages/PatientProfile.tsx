@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import {
   ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
   Image as ImageIcon, CalendarPlus, Stethoscope,
   Edit, Save, Plus, CheckCircle2, Clock, Upload, Trash2,
-  Pill, Printer, X,
+  Pill, Printer, MapPin, Briefcase,
 } from "lucide-react";
 import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
 import { DoctorBadge } from "@/components/DoctorBadge";
 import { DoctorSelect } from "@/components/DoctorSelect";
+import { PrescriptionDialog } from "@/components/PrescriptionDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,11 +35,13 @@ import { cn } from "@/lib/utils";
 import { TREATMENT_TYPE_LABELS, type Patient, type TreatmentType, type GalleryImage } from "@/data/mockPatients";
 import type { Treatment, TreatmentStatus } from "@/data/mockTreatments";
 import type { Prescription } from "@/data/mockPrescriptions";
+import { formatPrintDosage, formatPrintDuration, formatPrintSchedule } from "@/data/medicationCatalog";
 import { loadClinicInfo } from "@/data/clinicInfo";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
-import { type PatientDetailResult } from "@/lib/api/mappers";
+import { treatmentTypeKeyFromName, type PatientDetailResult } from "@/lib/api/mappers";
 import { useTreatments } from "@/contexts/TreatmentContext";
+import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
 import { usePatients, usePatientDetail, patientKeys } from "@/contexts/PatientsContext";
 import { usePrescriptions } from "@/contexts/PrescriptionsContext";
 import { useDoctors } from "@/contexts/DoctorsContext";
@@ -120,26 +123,49 @@ function TreatmentDialog({
 }) {
   const { t } = useTranslation();
   const { addTreatment, updateTreatment } = useTreatments();
+  const { treatmentTypes } = useServiceTemplates();
   const isEditing = !!treatment;
 
   const [date, setDate]                 = useState<Date>(treatment ? new Date(treatment.date) : new Date());
   const [teeth, setTeeth]               = useState<string[]>(treatment?.teeth ?? []);
-  const [type, setType]                 = useState<TreatmentType>(treatment?.treatmentType ?? "filling");
+  const [treatmentTypeId, setTreatmentTypeId] = useState("");
   const [totalCost, setTotalCost]       = useState(treatment ? String(treatment.totalCost) : "");
   const [amountPaid, setAmountPaid]     = useState(treatment ? String(treatment.amountPaid) : "");
   const [doctorId, setDoctorId]         = useState(treatment?.doctorId ?? "");
   const [note, setNote]                 = useState(treatment?.note ?? "");
 
+  // Default the treatment-type select once the list loads. When editing, match
+  // the treatment's display key back to an API type; otherwise pick the first.
+  useEffect(() => {
+    if (treatmentTypeId || treatmentTypes.length === 0) return;
+    const match = treatment
+      ? treatmentTypes.find((tt) => treatmentTypeKeyFromName(tt.name) === treatment.treatmentType)
+      : undefined;
+    const chosen = match ?? treatmentTypes[0];
+    setTreatmentTypeId(String(chosen.id));
+    // Prefill cost only when adding; editing keeps the treatment's existing cost.
+    if (!treatment && chosen.price != null) setTotalCost(String(chosen.price));
+  }, [treatment, treatmentTypes, treatmentTypeId]);
+
+  // Picking a treatment type prefills its price as an editable default.
+  function selectTreatmentType(id: string) {
+    setTreatmentTypeId(id);
+    const tt = treatmentTypes.find((t) => String(t.id) === id);
+    if (tt?.price != null) setTotalCost(String(tt.price));
+  }
+
   function reset() {
-    setDate(new Date()); setTeeth([]); setType("filling");
+    setDate(new Date()); setTeeth([]); setTreatmentTypeId("");
     setTotalCost(""); setAmountPaid(""); setDoctorId(""); setNote("");
   }
 
   function handleSave() {
+    const selectedType = treatmentTypes.find((tt) => String(tt.id) === treatmentTypeId);
     const data = {
       date: date.toISOString(),
       teeth,
-      treatmentType: type,
+      // Display key for the local cache; the real id is sent separately on add.
+      treatmentType: selectedType ? treatmentTypeKeyFromName(selectedType.name) : "cleaning",
       totalCost: Number(totalCost) || 0,
       amountPaid: Number(amountPaid) || 0,
       doctorId: doctorId || undefined,
@@ -149,7 +175,12 @@ function TreatmentDialog({
       updateTreatment(treatment.id, data);
       toast.success(t("treatments.treatmentUpdated"));
     } else {
-      addTreatment({ patientId, status: "in_progress", ...data });
+      addTreatment({
+        patientId,
+        status: "in_progress",
+        ...data,
+        treatmentTypeId: Number(treatmentTypeId) || undefined,
+      });
       toast.success(t("treatments.treatmentAdded"));
     }
     if (!treatment) reset();
@@ -192,11 +223,11 @@ function TreatmentDialog({
           {/* Treatment type */}
           <div className="space-y-1.5">
             <Label>{t("patients.treatmentType")}</Label>
-            <Select value={type} onValueChange={(v) => setType(v as TreatmentType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select value={treatmentTypeId} onValueChange={selectTreatmentType}>
+              <SelectTrigger><SelectValue placeholder={t("appointments.selectTreatment")} /></SelectTrigger>
               <SelectContent>
-                {(Object.entries(TREATMENT_TYPE_LABELS) as [TreatmentType, string][]).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                {treatmentTypes.map((tt) => (
+                  <SelectItem key={tt.id} value={String(tt.id)}>{tt.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -236,17 +267,13 @@ function TreatmentDialog({
 // ─── Treatment Card ───────────────────────────────────────────────────────────
 
 function TreatmentCard({
-  treatment, onEdit, onWritePrescription, onPrintPrescription,
+  treatment, onEdit,
 }: {
   treatment: Treatment;
   onEdit: (t: Treatment) => void;
-  onWritePrescription: (t: Treatment) => void;
-  onPrintPrescription: (p: Prescription, t: Treatment) => void;
 }) {
   const { t } = useTranslation();
   const { completeTreatment } = useTreatments();
-  const { getTreatmentPrescriptions } = usePrescriptions();
-  const prescriptions = getTreatmentPrescriptions(treatment.id);
   const remaining = treatment.totalCost - treatment.amountPaid;
 
   function handleComplete() {
@@ -307,41 +334,10 @@ function TreatmentCard({
         <p className="text-xs text-muted-foreground italic">{treatment.note}</p>
       )}
 
-      {prescriptions.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">{t("prescriptions.title")}</p>
-          <div className="space-y-1">
-            {prescriptions.map((rx) => (
-              <div
-                key={rx.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-background/70 px-2.5 py-1.5 border border-border/40 text-xs"
-              >
-                <span className="text-muted-foreground">
-                  {format(new Date(rx.date), "dd.MM.yyyy")} · {rx.medications.length} {t("prescriptions.medicationsCount")}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 gap-1.5 px-2.5 text-xs"
-                  onClick={() => onPrintPrescription(rx, treatment)}
-                >
-                  <Printer className="h-3.5 w-3.5" />
-                  {t("prescriptions.print")}
-                </Button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="flex flex-wrap gap-2 pt-1">
         <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onEdit(treatment)}>
           <Edit className="h-3 w-3" />
           {t("treatments.editTreatment")}
-        </Button>
-        <Button size="sm" className="h-7 gap-1 text-xs" onClick={() => onWritePrescription(treatment)}>
-          <Pill className="h-3 w-3" />
-          {t("prescriptions.newPrescription")}
         </Button>
         {treatment.status === "in_progress" && (
           <Button
@@ -358,316 +354,113 @@ function TreatmentCard({
   );
 }
 
-// ─── Prescription Dialog ──────────────────────────────────────────────────────
-
-interface MedicationDraft {
-  name: string;
-  dosage: string;
-  schedule: string;
-  duration: string;
-}
-
-function emptyMedication(): MedicationDraft {
-  return { name: "", dosage: "", schedule: "", duration: "" };
-}
-
-function PrescriptionDialog({
-  treatment, treatments, editing, open, onOpenChange,
-}: {
-  treatment: Treatment | null;
-  treatments: Treatment[];
-  editing: Prescription | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  const { addPrescription, updatePrescription } = usePrescriptions();
-
-  const showTreatmentSelect = !treatment && !editing;
-
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  const [doctorId, setDoctorId] = useState("");
-  const [note, setNote] = useState("");
-  const [medications, setMedications] = useState<MedicationDraft[]>([emptyMedication()]);
-
-  useEffect(() => {
-    if (open) {
-      const initialTreatmentId = editing?.treatmentId ?? treatment?.id ?? treatments[0]?.id ?? "";
-      setSelectedTreatmentId(initialTreatmentId);
-      setDate(editing ? new Date(editing.date) : new Date());
-      const initialTreatment = treatment ?? treatments.find((tr) => tr.id === initialTreatmentId);
-      setDoctorId(editing?.doctorId ?? initialTreatment?.doctorId ?? "");
-      setNote(editing?.note ?? "");
-      setMedications(
-        editing
-          ? editing.medications.map((m) => ({ name: m.name, dosage: m.dosage, schedule: m.schedule, duration: m.duration }))
-          : [emptyMedication()],
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, treatment, editing, treatments]);
-
-  function handleTreatmentSelectChange(value: string) {
-    setSelectedTreatmentId(value);
-    const tr = treatments.find((t) => t.id === value);
-    setDoctorId(tr?.doctorId ?? "");
-  }
-
-  function updateMedication(index: number, field: keyof MedicationDraft, value: string) {
-    setMedications((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
-  }
-
-  function addMedicationRow() {
-    setMedications((prev) => [...prev, emptyMedication()]);
-  }
-
-  function removeMedicationRow(index: number) {
-    setMedications((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function handleSave() {
-    const targetTreatmentId = editing?.treatmentId ?? treatment?.id ?? selectedTreatmentId;
-    if (!targetTreatmentId) return;
-    const valid = medications.filter((m) => m.name.trim());
-    if (valid.length === 0) return;
-    const data = {
-      treatmentId: targetTreatmentId,
-      date: date.toISOString(),
-      doctorId: doctorId || undefined,
-      note: note.trim() || undefined,
-      medications: valid.map((m, i) => ({
-        id: `med-${Date.now()}-${i}`,
-        name: m.name.trim(),
-        dosage: m.dosage.trim(),
-        schedule: m.schedule.trim(),
-        duration: m.duration.trim(),
-      })),
-    };
-    if (editing) {
-      updatePrescription(editing.id, data);
-      toast.success(t("prescriptions.prescriptionUpdated"));
-    } else {
-      addPrescription(data);
-      toast.success(t("prescriptions.prescriptionAdded"));
-    }
-    onOpenChange(false);
-  }
-
-  const canSave = medications.some((m) => m.name.trim()) && Boolean(editing?.treatmentId ?? treatment?.id ?? selectedTreatmentId);
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Pill className="h-4 w-4 text-primary" />
-            {editing ? t("prescriptions.editPrescription") : t("prescriptions.newPrescription")}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {showTreatmentSelect && (
-            <div className="space-y-1.5">
-              <Label>{t("prescriptions.treatment")}</Label>
-              <Select value={selectedTreatmentId} onValueChange={handleTreatmentSelectChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {treatments.map((tr) => (
-                    <SelectItem key={tr.id} value={tr.id}>
-                      {TREATMENT_TYPE_LABELS[tr.treatmentType]}
-                      {tr.teeth.length > 0 && ` #${tr.teeth.join(", #")}`}
-                      {" — "}{format(new Date(tr.date), "dd.MM.yyyy")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>{t("treatments.date")}</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {format(date, "dd.MM.yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarPicker mode="single" selected={date} onSelect={(d) => d && setDate(d)} className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <DoctorSelect value={doctorId} onChange={setDoctorId} label={t("reminders.doctor")} hideIfSingle={false} />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>{t("prescriptions.medications")}</Label>
-              <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={addMedicationRow}>
-                <Plus className="h-3 w-3" />
-                {t("prescriptions.addMedication")}
-              </Button>
-            </div>
-            <div className="space-y-3">
-              {medications.map((med, i) => (
-                <div key={i} className="relative rounded-lg border border-border p-3 space-y-2">
-                  {medications.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeMedicationRow(i)}
-                      className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
-                      aria-label={t("prescriptions.removeMedication")}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                  <Input
-                    className="h-8 text-sm pr-7"
-                    placeholder={t("prescriptions.medicationName")}
-                    value={med.name}
-                    onChange={(e) => updateMedication(i, "name", e.target.value)}
-                  />
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      className="h-8 text-xs"
-                      placeholder={t("prescriptions.dosage")}
-                      value={med.dosage}
-                      onChange={(e) => updateMedication(i, "dosage", e.target.value)}
-                    />
-                    <Input
-                      className="h-8 text-xs"
-                      placeholder={t("prescriptions.schedule")}
-                      value={med.schedule}
-                      onChange={(e) => updateMedication(i, "schedule", e.target.value)}
-                    />
-                    <Input
-                      className="h-8 text-xs"
-                      placeholder={t("prescriptions.duration")}
-                      value={med.duration}
-                      onChange={(e) => updateMedication(i, "duration", e.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t("prescriptions.note")}</Label>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="..." />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("patients.cancel")}</Button>
-          <Button onClick={handleSave} disabled={!canSave}>{t("patients.save")}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Printable Prescription ───────────────────────────────────────────────────
 
-function PrintablePrescription({
-  prescription, treatment, patient,
-}: {
-  prescription: Prescription;
-  treatment: Treatment;
-  patient: Patient;
-}) {
+function PrintablePrescription({ prescription }: { prescription: Prescription }) {
   const clinic = loadClinicInfo();
   const { getDoctor } = useDoctors();
-  const doctor = getDoctor(prescription.doctorId ?? treatment.doctorId);
+  const doctor = getDoctor(prescription.doctorId);
 
   return (
-    <div className="print-area p-10 text-black bg-white">
-      <div className="flex items-center gap-4 border-b-2 border-black pb-4 mb-6">
-        {clinic.logo && (
-          <img src={clinic.logo} alt={clinic.name} className="h-16 w-16 rounded object-cover" />
-        )}
-        <div>
-          <h1 className="text-xl font-bold">{clinic.name}</h1>
-          <p className="text-sm text-gray-600">{clinic.address}</p>
-          <p className="text-sm text-gray-600">{clinic.phone}</p>
+    <div className="print-area bg-white px-10 py-8 text-[13px] leading-relaxed text-black">
+      <div className="mx-auto max-w-[760px]">
+        {/* Letterhead */}
+        <header className="flex items-center gap-4 border-b-2 border-black pb-4">
+          {clinic.logo && (
+            <img src={clinic.logo} alt={clinic.name} className="h-14 w-14 rounded-lg object-cover" />
+          )}
+          <div className="min-w-0">
+            <p className="text-[20px] font-semibold leading-tight tracking-tight">{clinic.name}</p>
+            <p className="mt-1 text-[11px] text-gray-600">{clinic.address}</p>
+            <p className="text-[11px] text-gray-600">{clinic.phone}</p>
+          </div>
+        </header>
+
+        {/* Title left, doctor right — no rule underneath. */}
+        <div className="mt-6 flex items-baseline justify-between gap-6">
+          <h2 className="text-[17px] font-semibold tracking-tight">
+            {/* The record carries no date (the backend stamps it on create),
+                so the sheet is dated the day it is printed. */}
+            Retsept — {format(new Date(), "dd.MM.yyyy")}
+          </h2>
+          <p className="shrink-0 text-gray-700">
+            Doctor: <span className="font-medium text-black">{doctor?.name ?? "—"}</span>
+          </p>
         </div>
-      </div>
 
-      <h2 className="text-lg font-semibold mb-4">
-        Retsept — {format(new Date(prescription.date), "dd.MM.yyyy")}
-      </h2>
-
-      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-        <div>
-          <p className="text-gray-500">Bemor</p>
-          <p className="font-medium">{patient.fullName}{patient.age ? `, ${patient.age} yosh` : ""}</p>
-          <p>{patient.phone}</p>
-        </div>
-        <div>
-          <p className="text-gray-500">Shifokor</p>
-          <p className="font-medium">{doctor?.name ?? "—"}</p>
-          {doctor?.specialty && <p>{doctor.specialty}</p>}
-        </div>
-      </div>
-
-      {prescription.note && (
-        <p className="mb-4 text-sm"><strong>Izoh:</strong> {prescription.note}</p>
-      )}
-
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b-2 border-black text-left">
-            <th className="py-2 pr-2 w-8">#</th>
-            <th className="py-2 pr-2">Dori nomi</th>
-            <th className="py-2 pr-2">Dozasi</th>
-            <th className="py-2 pr-2">Qabul tartibi</th>
-            <th className="py-2">Muddati</th>
-          </tr>
-        </thead>
-        <tbody>
-          {prescription.medications.map((m, i) => (
-            <tr key={m.id} className="border-b border-gray-300">
-              <td className="py-2 pr-2">{i + 1}</td>
-              <td className="py-2 pr-2 font-medium">{m.name}</td>
-              <td className="py-2 pr-2">{m.dosage}</td>
-              <td className="py-2 pr-2">{m.schedule}</td>
-              <td className="py-2">{m.duration}</td>
+        <table className="mt-5 w-full border-collapse text-left">
+          <colgroup>
+            <col className="w-7" />
+            <col />
+            <col className="w-24" />
+            <col className="w-60" />
+            <col className="w-20" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-gray-800">
+              <th className="pb-2 pr-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">#</th>
+              <th className="pb-2 pr-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dori nomi</th>
+              <th className="pb-2 pr-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Dozasi</th>
+              <th className="pb-2 pr-3 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Qabul tartibi</th>
+              <th className="pb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Muddati</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {prescription.medications.map((m, i) => (
+              <tr key={m.id} className="break-inside-avoid border-b border-gray-200 align-top">
+                <td className="py-2.5 pr-2 tabular-nums text-gray-400">{i + 1}</td>
+                <td className="py-2.5 pr-3 font-medium">{m.name}</td>
+                <td className="py-2.5 pr-3 text-gray-700">{formatPrintDosage(m)}</td>
+                <td className="py-2.5 pr-3 text-gray-700">{formatPrintSchedule(m)}</td>
+                <td className="py-2.5 text-gray-700">{formatPrintDuration(m)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      <div className="mt-20 flex justify-between text-sm">
-        <p className="border-t border-black pt-1 w-40">Shifokor imzosi</p>
-        <p className="border-t border-black pt-1 w-40">Muhr</p>
+        {prescription.note && (
+          <div className="mt-5 border-l-2 border-gray-300 pl-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">Izoh</p>
+            <p className="mt-0.5 text-gray-800">{prescription.note}</p>
+          </div>
+        )}
+
+        <div className="mt-16 flex items-end justify-between gap-10">
+          <div className="w-48">
+            <div className="h-px w-full bg-gray-400" />
+            <p className="mt-1 text-[11px] text-gray-600">Shifokor imzosi</p>
+          </div>
+          <div className="w-40 text-right">
+            <div className="h-px w-full bg-gray-400" />
+            <p className="mt-1 text-[11px] text-gray-600">Muhr</p>
+          </div>
+        </div>
+
+        <footer className="mt-10 border-t border-gray-200 pt-2 text-center text-[10px] text-gray-400">
+          {clinic.name} · {clinic.phone}
+        </footer>
       </div>
     </div>
   );
 }
 
-// ─── Prescriptions Tab (all of a patient's prescriptions, across treatments) ──
+// ─── Prescriptions Tab (a patient's prescriptions, newest first) ─────────────
 
 function PrescriptionsTab({
-  treatments, onNew, onEdit, onPrint,
+  patientId, patientName, onNew, onEdit, onPrint,
 }: {
-  treatments: Treatment[];
+  patientId: string;
+  /** API records come back with a name only, so matching needs both. */
+  patientName?: string;
   onNew: () => void;
-  onEdit: (rx: Prescription, treatment: Treatment) => void;
-  onPrint: (rx: Prescription, treatment: Treatment) => void;
+  onEdit: (rx: Prescription) => void;
+  onPrint: (rx: Prescription) => void;
 }) {
   const { t } = useTranslation();
-  const { getTreatmentPrescriptions, deletePrescription } = usePrescriptions();
+  const { getPatientPrescriptions, deletePrescription } = usePrescriptions();
   const [deleteTarget, setDeleteTarget] = useState<Prescription | null>(null);
 
-  const rows = useMemo(
-    () =>
-      treatments
-        .flatMap((tr) => getTreatmentPrescriptions(tr.id).map((rx) => ({ rx, treatment: tr })))
-        .sort((a, b) => new Date(b.rx.date).getTime() - new Date(a.rx.date).getTime()),
-    [treatments, getTreatmentPrescriptions],
-  );
+  const rows = getPatientPrescriptions(patientId, patientName);
 
   function confirmDelete() {
     if (!deleteTarget) return;
@@ -681,37 +474,32 @@ function PrescriptionsTab({
       <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
         <Pill className="h-14 w-14 opacity-15" />
         <p className="text-sm">{t("prescriptions.noPrescriptions")}</p>
-        {treatments.length > 0 && (
-          <Button size="sm" onClick={onNew}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("prescriptions.newPrescription")}
-          </Button>
-        )}
+        <Button size="sm" onClick={onNew}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          {t("prescriptions.newPrescription")}
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {treatments.length > 0 && (
-        <div className="flex justify-end">
-          <Button size="sm" className="gap-1.5" onClick={onNew}>
-            <Plus className="h-4 w-4" />
-            {t("prescriptions.newPrescription")}
-          </Button>
-        </div>
-      )}
-      {rows.map(({ rx, treatment }) => (
+      <div className="flex justify-end">
+        <Button size="sm" className="gap-1.5" onClick={onNew}>
+          <Plus className="h-4 w-4" />
+          {t("prescriptions.newPrescription")}
+        </Button>
+      </div>
+      {rows.map((rx) => (
         <div key={rx.id} className="rounded-xl border border-border shadow-sm p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-sm">{format(new Date(rx.date), "dd.MM.yyyy")}</span>
+              <span className="font-semibold text-sm">{t("prescriptions.prescription")}</span>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                {TREATMENT_TYPE_LABELS[treatment.treatmentType]}
-                {treatment.teeth.length > 0 && ` #${treatment.teeth.join(", #")}`}
+                {rx.medications.length} {t("prescriptions.medicationsCount")}
               </Badge>
             </div>
-            <DoctorBadge doctorId={rx.doctorId ?? treatment.doctorId} variant="compact" />
+            <DoctorBadge doctorId={rx.doctorId} variant="compact" />
           </div>
 
           <div className="flex flex-wrap gap-1.5">
@@ -726,7 +514,7 @@ function PrescriptionsTab({
           {rx.note && <p className="text-xs text-muted-foreground italic">{rx.note}</p>}
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onEdit(rx, treatment)}>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onEdit(rx)}>
               <Edit className="h-3.5 w-3.5" />
               {t("prescriptions.edit")}
             </Button>
@@ -739,7 +527,7 @@ function PrescriptionsTab({
               <Trash2 className="h-3.5 w-3.5" />
               {t("prescriptions.delete")}
             </Button>
-            <Button size="sm" className="gap-1.5" onClick={() => onPrint(rx, treatment)}>
+            <Button size="sm" className="gap-1.5" onClick={() => onPrint(rx)}>
               <Printer className="h-3.5 w-3.5" />
               {t("prescriptions.print")}
             </Button>
@@ -877,12 +665,13 @@ function EditPatientDialog({
 // ─── Patient Header ───────────────────────────────────────────────────────────
 
 function PatientHeader({
-  patient, status, onAddAppointment, onAddTreatment,
+  patient, status, onAddAppointment, onAddTreatment, onWritePrescription,
 }: {
   patient: Patient;
   status: TreatmentStatus;
   onAddAppointment: () => void;
   onAddTreatment: () => void;
+  onWritePrescription: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -905,12 +694,32 @@ function PatientHeader({
                 <Badge className={patientStatusColors[status]}>{t(`patients.${status}`)}</Badge>
                 <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
               </div>
+              {(patient.address || patient.workplace) && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  {patient.address && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      {patient.address}
+                    </span>
+                  )}
+                  {patient.workplace && (
+                    <span className="flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5 shrink-0" />
+                      {patient.workplace}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddAppointment}>
               <CalendarPlus className="h-4 w-4" />
               <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={onWritePrescription}>
+              <Pill className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("patientProfile.writePrescription")}</span>
             </Button>
             <Button size="sm" className="gap-1.5" onClick={onAddTreatment}>
               <Stethoscope className="h-4 w-4" />
@@ -1194,10 +1003,11 @@ function GalleryTab({
 export default function PatientProfile() {
   const { id }    = useParams<{ id: string }>();
   const navigate  = useNavigate();
+  const location  = useLocation();
   const { t }     = useTranslation();
 
   const { updatePatient } = usePatients();
-  const { getTreatmentPrescriptions } = usePrescriptions();
+  const { getPatientPrescriptions } = usePrescriptions();
   const queryClient = useQueryClient();
 
   const { data: detail, isLoading: detailLoading } = usePatientDetail(id);
@@ -1206,10 +1016,24 @@ export default function PatientProfile() {
   const [appointmentOpen, setAppointmentOpen]     = useState(false);
   const [treatmentDialogOpen, setTreatmentDialogOpen] = useState(false);
   const [editingTreatment, setEditingTreatment]   = useState<Treatment | null>(null);
-  const [prescriptionTreatment, setPrescriptionTreatment] = useState<Treatment | null>(null);
   const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
   const [prescriptionDialogOpen, setPrescriptionDialogOpen] = useState(false);
-  const [printingPrescription, setPrintingPrescription] = useState<{ prescription: Prescription; treatment: Treatment } | null>(null);
+  const [printingPrescription, setPrintingPrescription] = useState<Prescription | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Arriving from the global "Write prescription" dialog: show the prescriptions
+  // tab and send the fresh record straight to the printer. The router state is
+  // cleared right away so a reload or a back-navigation never reprints.
+  const printRequestId = (location.state as { printPrescriptionId?: string } | null)?.printPrescriptionId;
+  useEffect(() => {
+    if (!printRequestId || !id) return;
+    const rx = getPatientPrescriptions(id, localPatient?.fullName).find((p) => p.id === printRequestId);
+    navigate(location.pathname, { replace: true, state: null });
+    if (!rx) return;
+    setActiveTab("prescriptions");
+    setPrintingPrescription(rx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printRequestId, id]);
 
   useEffect(() => {
     if (!printingPrescription) return;
@@ -1243,9 +1067,16 @@ export default function PatientProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allTreatments]);
 
+  // Rendered in every branch: the printable sheet needs no patient data, and a
+  // print triggered right after navigation must not wait for the detail query.
+  const printSheet = printingPrescription
+    ? <PrintablePrescription prescription={printingPrescription} />
+    : null;
+
   if (detailLoading) {
     return (
       <div className="flex items-center justify-center py-20">
+        {printSheet}
         <p className="text-muted-foreground">{t("common.loading")}</p>
       </div>
     );
@@ -1254,6 +1085,7 @@ export default function PatientProfile() {
   if (!localPatient) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20">
+        {printSheet}
         <p className="text-muted-foreground">{t("patientProfile.notFound")}</p>
         <Button variant="outline" onClick={() => navigate("/patients")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1314,32 +1146,17 @@ export default function PatientProfile() {
     setTreatmentDialogOpen(true);
   }
 
-  function openWritePrescription(tr: Treatment) {
-    setPrescriptionTreatment(tr);
+  function openNewPrescription() {
     setEditingPrescription(null);
     setPrescriptionDialogOpen(true);
   }
 
-  function openNewPrescriptionFromTab() {
-    setPrescriptionTreatment(null);
-    setEditingPrescription(null);
-    setPrescriptionDialogOpen(true);
-  }
-
-  function openEditPrescription(rx: Prescription, tr: Treatment) {
-    setPrescriptionTreatment(tr);
+  function openEditPrescription(rx: Prescription) {
     setEditingPrescription(rx);
     setPrescriptionDialogOpen(true);
   }
 
-  function handlePrintPrescription(prescription: Prescription, treatment: Treatment) {
-    setPrintingPrescription({ prescription, treatment });
-  }
-
-  const prescriptionsCount = allTreatments.reduce(
-    (sum, tr) => sum + getTreatmentPrescriptions(tr.id).length,
-    0,
-  );
+  const prescriptionsCount = getPatientPrescriptions(patientId, localPatient?.fullName).length;
 
   return (
     <div className="space-y-6">
@@ -1363,6 +1180,7 @@ export default function PatientProfile() {
         status={patientStatus}
         onAddAppointment={() => setAppointmentOpen(true)}
         onAddTreatment={openNewTreatment}
+        onWritePrescription={openNewPrescription}
       />
 
       {/* Dialogs */}
@@ -1374,22 +1192,15 @@ export default function PatientProfile() {
         onOpenChange={setTreatmentDialogOpen}
       />
       <PrescriptionDialog
-        treatment={prescriptionTreatment}
-        treatments={allTreatments}
+        patientId={patientId}
         editing={editingPrescription}
         open={prescriptionDialogOpen}
         onOpenChange={(v) => { setPrescriptionDialogOpen(v); if (!v) setEditingPrescription(null); }}
       />
-      {printingPrescription && (
-        <PrintablePrescription
-          prescription={printingPrescription.prescription}
-          treatment={printingPrescription.treatment}
-          patient={localPatient}
-        />
-      )}
+      {printSheet}
 
       {/* Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">{t("patientProfile.overview")}</TabsTrigger>
           <TabsTrigger value="treatments">
@@ -1539,8 +1350,6 @@ export default function PatientProfile() {
                           key={tr.id}
                           treatment={tr}
                           onEdit={openEditTreatment}
-                          onWritePrescription={openWritePrescription}
-                          onPrintPrescription={handlePrintPrescription}
                         />
                       ))}
                     </div>
@@ -1557,8 +1366,6 @@ export default function PatientProfile() {
                           key={tr.id}
                           treatment={tr}
                           onEdit={openEditTreatment}
-                          onWritePrescription={openWritePrescription}
-                          onPrintPrescription={handlePrintPrescription}
                         />
                       ))}
                     </div>
@@ -1572,10 +1379,11 @@ export default function PatientProfile() {
         {/* ── Retseptlar ────────────────────────────────────────────────── */}
         <TabsContent value="prescriptions">
           <PrescriptionsTab
-            treatments={allTreatments}
-            onNew={openNewPrescriptionFromTab}
+            patientId={patientId}
+            patientName={localPatient?.fullName}
+            onNew={openNewPrescription}
             onEdit={openEditPrescription}
-            onPrint={handlePrintPrescription}
+            onPrint={setPrintingPrescription}
           />
         </TabsContent>
 

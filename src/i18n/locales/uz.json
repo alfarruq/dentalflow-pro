@@ -37,7 +37,52 @@
     "noRemindersToday": "Bugun uchun eslatma yo'q",
     "overdueBadge": "{{count}} ta muddati o'tgan",
     "topDebtors": "Eng katta qarzdorlar",
-    "topDebtorsSub": "Jami: {{total}} so'm"
+    "topDebtorsSub": "Jami: {{total}} so'm",
+    "nextAppointment": "Navbatdagi tashrif",
+    "noUpcoming": "Bugun boshqa tashrif yo'q",
+    "viewPatient": "Bemorni ko'rish",
+    "goodDay": "Xayrli kun!",
+    "appointmentsWaiting": "Bugun sizni <1>{{num}} ta</1> uchrashuv kutyapti.",
+    "planned": "ta rejalashtirilgan",
+    "completedN": "{{count}} tasi yakunlandi",
+    "activePatients": "Faol bemorlar",
+    "totalActive": "Jami faol",
+    "growthPositive": "+{{value}}% o‘sish",
+    "freeTimeToday": "Bugungi bo‘sh vaqt",
+    "noFreeSlots": "Bo‘sh vaqt yo‘q",
+    "quickReminders": "Tezkor eslatmalar",
+    "clinicStats": "Klinika statistikasi",
+    "col_time": "Vaqt",
+    "col_patient": "Bemor",
+    "col_treatment": "Muolaja turi",
+    "col_status": "Holat",
+    "addReminder": "Eslatma qo‘shish",
+    "noReminders": "Eslatmalar yo‘q",
+    "weekdaysShort": [
+      "Du",
+      "Se",
+      "Ch",
+      "Pa",
+      "Ju",
+      "Sha",
+      "Ya"
+    ],
+    "reminder1Title": "Sardor aka uchun rentgen natijasi",
+    "reminder1Desc": "Bugun 16:00 gacha tayyorlash kerak",
+    "reminder2Title": "Materiallar buyurtmasi",
+    "reminder2Desc": "Inventarizatsiya hisobotini tasdiqlash",
+    "thisWeek": "Bu hafta",
+    "apptsCount": "{{count}} ta uchrashuv",
+    "weekdaysFull": [
+      "Dushanba",
+      "Seshanba",
+      "Chorshanba",
+      "Payshanba",
+      "Juma",
+      "Shanba",
+      "Yakshanba"
+    ],
+    "col_doctor": "Shifokor"
   },
   "patients": {
     "title": "Bemorlar",
@@ -45,6 +90,7 @@
     "searchPlaceholder": "Bemor ismini qidirish...",
     "allStatuses": "Barcha holatlar",
     "allTreatments": "Barcha davolashlar",
+    "currentPageOnlyNote": "* Muolaja turi filtri faqat joriy sahifadagi bemorlarga qo'llanadi",
     "fullName": "To'liq ism",
     "phone": "Telefon raqam",
     "phoneRequired": "Ism va telefon raqam kiritilishi shart",
@@ -74,7 +120,8 @@
     "page": "Sahifa",
     "of": "dan",
     "showing": "Ko'rsatilmoqda",
-    "patients": "bemorlar"
+    "patients": "bemorlar",
+    "birthDate": "Tug‘ilgan sana"
   },
   "patientProfile": {
     "backToList": "Bemorlar ro'yxatiga qaytish",
@@ -108,16 +155,15 @@
     "deleteImage": "O'chirish",
     "deleteImageConfirmTitle": "Rasmni o'chirish",
     "deleteImageConfirmDesc": "Ushbu rasmni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.",
-    "imageDeleted": "Rasm o'chirildi"
+    "imageDeleted": "Rasm o'chirildi",
+    "writePrescription": "Retsept yozish"
   },
   "appointments": {
     "title": "Uchrashuvlar",
     "addAppointment": "Yangi Uchrashuv",
     "addAppointmentDesc": "Yangi uchrashuv ma'lumotlarini kiriting",
     "today": "Bugun",
-    "week": "1 Hafta",
-    "tenDays": "10 Kun",
-    "month": "1 Oy",
+    "all": "Hammasi",
     "searchPatient": "Bemorni qidirish...",
     "noAppointments": "Uchrashuvlar topilmadi",
     "appointments": "ta uchrashuv",
@@ -136,7 +182,24 @@
     "status_cancelled": "Bekor qilingan",
     "listView": "Kun",
     "gridView": "Hafta",
-    "monthView": "Oy"
+    "monthView": "Oy",
+    "daily": "Kunlik",
+    "weekly": "Haftalik",
+    "newAppointmentTitle": "Yangi uchrashuv",
+    "newAppointmentDesc": "Bemor va uchrashuv ma’lumotlarini kiriting",
+    "toothNumber": "Tish raqami",
+    "toothPlaceholder": "masalan: 16, 21, 46",
+    "selectTreatment": "Davolash turini tanlang",
+    "phoneAutofill": "Bemor tanlanganda to’ldiriladi",
+    "notesPlaceholder": "Qo’shimcha izoh (ixtiyoriy)",
+    "noPatientsFound": "Bemor topilmadi",
+    "doctorLabel": "Shifokor",
+    "selectTeeth": "Tishni tanlang",
+    "clear": "Tozalash",
+    "noToothSelected": "Tish tanlanmagan",
+    "upperJaw": "Yuqori jag‘",
+    "lowerJaw": "Pastki jag‘",
+    "close": "Yopish"
   },
   "reminders": {
     "title": "Eslatmalar",
@@ -299,7 +362,7 @@
     "patientFormFieldsTitle": "Bemor qo'shish formasi maydonlari",
     "patientFormFieldsDesc": "Yangi bemor qo'shish formasida qaysi qo'shimcha maydonlar ko'rsatilishini tanlang",
     "clinicInfo": "Klinika ma'lumotlari",
-    "services": "Xizmatlar va narxlar",
+    "services": "Davolash turlari",
     "edit": "Tahrirlash",
     "saved": "Ma'lumotlar saqlandi",
     "fullName": "To'liq ism",
@@ -331,6 +394,8 @@
     "serviceCategory": "Kategoriya",
     "servicePrice": "Narxi",
     "serviceDuration": "Davomiyligi",
+    "serviceTreatmentType": "Davolash turi",
+    "serviceActiveNotEditable": "Bu holatni o'zgartirish hozircha backendda qo'llab-quvvatlanmaydi",
     "min": "daqiqa",
     "activeServices": "ta faol xizmat",
     "noServices": "Xizmatlar mavjud emas",
@@ -347,9 +412,10 @@
     "cat_endodontics": "Endodontiya",
     "cat_orthodontics": "Ortodontiya",
     "tabDoctors": "Doktorlar",
-    "tabServices": "Xizmatlar",
+    "tabServices": "Davolash turlari",
     "tabMyInfo": "Shifokor",
-    "tabClinic": "Klinika"
+    "tabClinic": "Klinika",
+    "servicesCount": "{{count}} ta xizmat"
   },
   "login": {
     "title": "Tizimga kirish",
@@ -359,7 +425,16 @@
     "usernamePlaceholder": "Foydalanuvchi nomini kiriting",
     "passwordPlaceholder": "Parolni kiriting",
     "submit": "Kirish",
-    "error": "Noto'g'ri login yoki parol"
+    "signingIn": "Kirilmoqda…",
+    "rememberMe": "Meni eslab qol",
+    "forgotPassword": "Parolni unutdingizmi?",
+    "showPassword": "Parolni ko'rsatish",
+    "hidePassword": "Parolni yashirish",
+    "error": "Noto'g'ri login yoki parol",
+    "validation": {
+      "usernameRequired": "Foydalanuvchi nomini kiriting",
+      "passwordRequired": "Parolni kiriting"
+    }
   },
   "common": {
     "search": "Qidirish...",
@@ -488,7 +563,81 @@
     "deleteConfirmTitle": "Retseptni o'chirish",
     "deleteConfirmDesc": "Ushbu retseptni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.",
     "noPrescriptions": "Retseptlar mavjud emas",
-    "treatment": "Muolaja",
-    "print": "Chop etish"
+    "print": "Chop etish",
+    "medicine": "Dori",
+    "dose": "Doza",
+    "frequency": "Qabul",
+    "meal": "Ovqat",
+    "minutes": "Daqiqa",
+    "minutesShort": "daq",
+    "searchMedicine": "Dori qidirish...",
+    "noMedicineFound": "Dori topilmadi",
+    "addCustomMedicine": "\"{{name}}\" ni qo'shish",
+    "noMedicinesYet": "Dori qo'shilmagan — \"Dori qo'shish\" tugmasini bosing",
+    "savePrescription": "Retseptni saqlash",
+    "notePlaceholder": "Bemor uchun qo'shimcha izohlar...",
+    "categories": {
+      "antibiotic": "Antibiotiklar",
+      "analgesic": "Og'riq qoldiruvchi",
+      "topical": "Mahalliy / chayqash",
+      "other": "Qo'shimcha"
+    },
+    "forms": {
+      "tablet": "Tabletka",
+      "capsule": "Kapsula",
+      "sachet": "Sashe",
+      "gel": "Gel",
+      "spray": "Sprey",
+      "drops": "Tomchi",
+      "injection": "In'yeksiya",
+      "cream": "Krem"
+    },
+    "frequencies": {
+      "od": "1 mahal/kun",
+      "bid": "2 mahal/kun",
+      "tid": "3 mahal/kun",
+      "qid": "4 mahal/kun",
+      "q6h": "Har 6 soatda",
+      "q8h": "Har 8 soatda",
+      "q12h": "Har 12 soatda",
+      "prn": "Kerak bo'lganda"
+    },
+    "durationUnits": {
+      "days": "Kun",
+      "weeks": "Hafta"
+    },
+    "mealRelations": {
+      "before": "Ovqatdan oldin",
+      "after": "Ovqatdan keyin",
+      "with": "Ovqat bilan",
+      "none": "Bog'liq emas"
+    },
+    "prescription": "Retsept"
+  },
+  "commandPalette": {
+    "placeholder": "Bemor, sahifa yoki amal qidirish...",
+    "noResults": "Hech narsa topilmadi.",
+    "groupPages": "Sahifalar",
+    "groupActions": "Amallar",
+    "groupPatients": "Bemorlar",
+    "goToDashboard": "Bosh sahifaga o'tish",
+    "goToPatients": "Bemorlarga o'tish",
+    "goToAppointments": "Tashriflarga o'tish",
+    "goToProfile": "Profilga o'tish",
+    "actionNewPatient": "Yangi bemor",
+    "actionNewAppointment": "Yangi tashrif",
+    "actionNewPrescription": "Retsept yozish"
+  },
+  "shortcutsHelp": {
+    "title": "Tezkor tugmalar",
+    "chordHint": "\"G\" tugmasini bosing, so'ng harfni tanlang",
+    "openPalette": "Buyruqlar panelini ochish",
+    "newPatient": "Yangi bemor",
+    "newAppointment": "Yangi tashrif",
+    "openHelp": "Shu oynani ochish",
+    "goToDashboard": "Bosh sahifaga o'tish",
+    "goToPatients": "Bemorlarga o'tish",
+    "goToAppointments": "Tashriflarga o'tish",
+    "goToProfile": "Profilga o'tish"
   }
 }

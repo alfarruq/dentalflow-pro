@@ -231,6 +231,7 @@ export function mapRecipe(dto: RecipeDto, doctors: Doctor[], t: TFunction): Pres
     id: String(dto.id),
     patientId: "",
     patientName: dto.patient,
+    date: dto.created_at,
     doctorId: doctorIdByName(doctors, dto.doctor),
     note: dto.notes ?? undefined,
     medications,

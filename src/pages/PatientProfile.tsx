@@ -379,9 +379,9 @@ function PrintablePrescription({ prescription }: { prescription: Prescription })
         {/* Title left, doctor right — no rule underneath. */}
         <div className="mt-6 flex items-baseline justify-between gap-6">
           <h2 className="text-[17px] font-semibold tracking-tight">
-            {/* The record carries no date (the backend stamps it on create),
-                so the sheet is dated the day it is printed. */}
-            Retsept — {format(new Date(), "dd.MM.yyyy")}
+            {/* Dated by the backend's created_at; falls back to today for a
+                record that has not been read back from the API yet. */}
+            Retsept — {format(new Date(prescription.date ?? Date.now()), "dd.MM.yyyy")}
           </h2>
           <p className="shrink-0 text-gray-700">
             Doctor: <span className="font-medium text-black">{doctor?.name ?? "—"}</span>
@@ -494,7 +494,9 @@ function PrescriptionsTab({
         <div key={rx.id} className="rounded-xl border border-border shadow-sm p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-sm">{t("prescriptions.prescription")}</span>
+              <span className="font-semibold text-sm">
+                {rx.date ? format(new Date(rx.date), "dd.MM.yyyy") : t("prescriptions.prescription")}
+              </span>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                 {rx.medications.length} {t("prescriptions.medicationsCount")}
               </Badge>

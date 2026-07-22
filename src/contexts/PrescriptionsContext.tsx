@@ -98,11 +98,14 @@ export function PrescriptionsProvider({ children }: { children: ReactNode }) {
 
   const getPatientPrescriptions = useCallback(
     (patientId: string, patientName?: string) =>
-      prescriptions.filter(
-        (p) =>
-          (p.patientId && p.patientId === patientId) ||
-          (Boolean(patientName) && p.patientName === patientName),
-      ),
+      prescriptions
+        .filter(
+          (p) =>
+            (p.patientId && p.patientId === patientId) ||
+            (Boolean(patientName) && p.patientName === patientName),
+        )
+        // Newest first, by the backend's created_at.
+        .sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime()),
     [prescriptions],
   );
 

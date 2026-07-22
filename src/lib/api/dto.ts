@@ -211,5 +211,7 @@ export interface RecipeDto {
   patient: string;
   doctor: string;
   notes: string | null;
+  /** ISO 8601 with offset — stamped by the backend on create. */
+  created_at: string;
   medicines: (MedicineWriteDto & { id: number })[];
 }

@@ -26,14 +26,17 @@ export interface Medication {
 }
 
 // A prescription is a standalone record of the patient, filed under the
-// patient's "Prescriptions" section and NOT tied to a treatment. There is no
-// date field: the backend stamps one automatically on create.
+// patient's "Prescriptions" section and NOT tied to a treatment. The date is
+// never entered by hand — the backend stamps `created_at` on create and it is
+// read back from the API.
 export interface Prescription {
   id: string;
   /** Empty for records read back from the API, which return a name only. */
   patientId: string;
   /** Set when the record came from the API (matched by name until it returns an id). */
   patientName?: string;
+  /** ISO date-time from the API (`created_at`); absent until the record is refetched. */
+  date?: string;
   doctorId?: string;
   note?: string;
   medications: Medication[];

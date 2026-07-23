@@ -1,0 +1,35 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+        run: |
+          echo "${SSH_PRIVATE_KEY}" > ssh_key
+          chmod 600 ssh_key
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ssh_key ${USERNAME}@${HOST} << 'EOF'
+            set -e
+            cd /root/dentalflow-pro
+            git pull origin main
+            npm install
+            npm run build
+            rm -rf /var/www/dentalflow-pro/dist
+            cp -r /root/dentalflow-pro/dist /var/www/dentalflow-pro/
+            chown -R www-data:www-data /var/www/dentalflow-pro
+          EOF

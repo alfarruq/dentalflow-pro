@@ -123,20 +123,28 @@ export function PatientsProvider({ children }: { children: ReactNode }) {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Patient, "id">> }) => {
-      // Only name/phone exist on the backend user-update endpoint today; the
-      // remaining fields are merged into the local cache below (BACKEND_SPEC.md).
+      // Backend-backed fields go to PATCH /clinic/patients/<id>/. `allergies` and
+      // `medicalNotes` have no backend column yet, so they are merged into the
+      // local cache below (onSuccess) and not sent.
       const body: Record<string, unknown> = {};
       if (data.fullName !== undefined) body.full_name = data.fullName;
       if (data.phone !== undefined) body.phone_number = data.phone;
+      if (data.assignedDoctorId !== undefined) body.doctor = data.assignedDoctorId ? Number(data.assignedDoctorId) : null;
+      if (data.birthDate !== undefined) body.birth_date = data.birthDate || null;
+      if (data.address !== undefined) body.address = data.address;
+      if (data.workplace !== undefined) body.office = data.workplace;
       if (Object.keys(body).length > 0) {
-        await apiFetch(`/authentication/update/${id}/`, { method: "PATCH", body });
+        await apiFetch(`/clinic/patients/${id}/`, { method: "PATCH", body });
       }
       return { id, data };
     },
     onSuccess: ({ id, data }) => {
+      // Optimistic merge for instant feedback (covers local-only fields too),
+      // then refetch so server-derived values like `age` are authoritative.
       queryClient.setQueryData<PatientDetailResult>(patientKeys.detail(id), (prev) =>
         prev ? { ...prev, patient: { ...prev.patient, ...data } } : prev,
       );
+      queryClient.invalidateQueries({ queryKey: patientKeys.detail(id) });
       invalidateLists();
     },
     onError: (err: Error) => toast.error(err.message),

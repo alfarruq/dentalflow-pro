@@ -3,15 +3,16 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import {
-  ArrowLeft, Phone, AlertTriangle, Calendar, CreditCard,
+  ArrowLeft, Phone, AlertTriangle, Calendar, MapPin, Briefcase, Cake,
   Image as ImageIcon, CalendarPlus, Stethoscope,
   Edit, Save, Plus, CheckCircle2, Clock, Upload, Trash2,
-  Pill, Printer, MapPin, Briefcase,
+  Pill, Printer, Pencil,
 } from "lucide-react";
 import { DentalChart, createDefaultTeeth, type ToothData } from "@/components/DentalChart";
 import { DoctorBadge } from "@/components/DoctorBadge";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { PrescriptionDialog } from "@/components/PrescriptionDialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -63,6 +64,17 @@ const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
 });
 
 function fmt(n: number) { return n.toLocaleString("uz-UZ"); }
+
+/** "+998932299722" → "+998(93)-229-97-22"; leaves anything unexpected as-is. */
+function formatPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("998")) {
+    const code = d.slice(3, 5);
+    const n = d.slice(5);
+    return `+998(${code})-${n.slice(0, 3)}-${n.slice(3, 5)}-${n.slice(5, 7)}`;
+  }
+  return raw;
+}
 
 const patientStatusColors: Record<TreatmentStatus, string> = {
   in_progress: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
@@ -636,99 +648,189 @@ function AddAppointmentDialog({
 
 // ─── Edit Patient Dialog ──────────────────────────────────────────────────────
 
+export interface EditPatientData {
+  fullName: string;
+  phone: string;
+  birthDate: string;
+  address: string;
+  workplace: string;
+  assignedDoctorId: string;
+  allergies: string;
+  medicalNotes: string;
+}
+
 function EditPatientDialog({
   patient, onSave,
 }: {
   patient: Patient;
-  onSave: (data: { fullName: string; phone: string; allergies: string; medicalNotes: string }) => void;
+  onSave: (data: EditPatientData) => void;
 }) {
   const { t } = useTranslation();
   const [fullName, setFullName]   = useState(patient.fullName);
   const [phone, setPhone]         = useState(patient.phone);
+  const [birthDate, setBirthDate] = useState(patient.birthDate ?? "");
+  const [address, setAddress]     = useState(patient.address ?? "");
+  const [workplace, setWorkplace] = useState(patient.workplace ?? "");
+  const [doctorId, setDoctorId]   = useState(patient.assignedDoctorId ?? "");
   const [allergies, setAllergies] = useState(patient.allergies.join(", "));
   const [medNotes, setMedNotes]   = useState(patient.medicalNotes);
 
+  const canSave = fullName.trim() !== "" && phone.trim() !== "";
+
   return (
-    <DialogContent>
+    <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
       <DialogHeader><DialogTitle>{t("patientProfile.editPatient")}</DialogTitle></DialogHeader>
-      <div className="space-y-4 pt-2">
-        <div className="space-y-2"><Label>{t("patients.fullName")}</Label><Input value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-        <div className="space-y-2"><Label>{t("patients.phone")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-        <div className="space-y-2"><Label>{t("patientProfile.allergiesLabel")}</Label><Input value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder={t("patientProfile.allergiesPlaceholder")} /></div>
-        <div className="space-y-2"><Label>{t("patientProfile.medicalNotesLabel")}</Label><Textarea value={medNotes} onChange={(e) => setMedNotes(e.target.value)} rows={3} /></div>
-        <Button className="w-full" onClick={() => onSave({ fullName, phone, allergies, medicalNotes: medNotes })}>
+      <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label>{t("patients.fullName")}</Label>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("patients.phone")}</Label>
+          <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+998..." />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("patients.birthDate")}</Label>
+          <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+        </div>
+        <DoctorSelect value={doctorId} onChange={setDoctorId} label={t("finance.assignedDoctor")} className="space-y-1.5" hideIfSingle={false} />
+        <div className="space-y-1.5">
+          <Label>{t("patients.address")}</Label>
+          <Input value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("patients.workplace")}</Label>
+          <Input value={workplace} onChange={(e) => setWorkplace(e.target.value)} />
+        </div>
+        {/* Local-only until the backend adds these columns. */}
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>{t("patientProfile.allergiesLabel")}</Label>
+          <Input value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder={t("patientProfile.allergiesPlaceholder")} />
+        </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <Label>{t("patientProfile.medicalNotesLabel")}</Label>
+          <Textarea value={medNotes} onChange={(e) => setMedNotes(e.target.value)} rows={3} />
+        </div>
+      </div>
+      <DialogFooter>
+        <Button
+          disabled={!canSave}
+          onClick={() =>
+            onSave({
+              fullName: fullName.trim(),
+              phone: phone.trim(),
+              birthDate,
+              address: address.trim(),
+              workplace: workplace.trim(),
+              assignedDoctorId: doctorId,
+              allergies,
+              medicalNotes: medNotes,
+            })
+          }
+        >
           <Save className="mr-2 h-4 w-4" />{t("patients.save")}
         </Button>
-      </div>
+      </DialogFooter>
     </DialogContent>
   );
 }
 
-// ─── Patient Header ───────────────────────────────────────────────────────────
+// ─── Patient Sidebar (left rail) ──────────────────────────────────────────────
 
-function PatientHeader({
-  patient, status, onAddAppointment, onAddTreatment, onWritePrescription,
+function PatientSidebar({
+  patient, status, balance,
 }: {
   patient: Patient;
   status: TreatmentStatus;
-  onAddAppointment: () => void;
-  onAddTreatment: () => void;
-  onWritePrescription: () => void;
+  balance: { totalCost: number; paid: number; remaining: number };
 }) {
   const { t } = useTranslation();
+  const cur = t("common.currency");
+  const paidPct = balance.totalCost > 0 ? Math.min(100, Math.round((balance.paid / balance.totalCost) * 100)) : 0;
+  const info = [
+    { Icon: Calendar, tip: t("patients.birthDate"), value: patient.birthDate ? format(new Date(patient.birthDate), "dd.MM.yyyy") : "—" },
+    ...(patient.age ? [{ Icon: Cake, tip: t("patientProfile.age"), value: `${patient.age} ${t("patientProfile.yearsOld")}` }] : []),
+    { Icon: MapPin, tip: t("patients.address"), value: patient.address || "—" },
+    { Icon: Briefcase, tip: t("patients.workplace"), value: patient.workplace || "—" },
+  ];
+
   return (
     <Card className="shadow-sm">
-      <CardContent className="pt-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xl font-bold">
-              {patient.fullName.charAt(0)}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{patient.fullName}</h1>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                <span>{patient.age} {t("patientProfile.yearsOld")}</span>
-                <a href={`tel:${patient.phone}`} className="flex items-center gap-1 text-primary hover:underline">
-                  <Phone className="h-3.5 w-3.5" />{patient.phone}
-                </a>
+      <CardContent className="space-y-5 p-5">
+        {/* Identity + contact */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            {patient.image ? (
+              <img src={patient.image} alt={patient.fullName} className="h-16 w-16 shrink-0 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary">
+                {patient.fullName.charAt(0)}
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+            )}
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold leading-tight tracking-tight">{patient.fullName}</h1>
+              <div className="mt-1">
                 <Badge className={patientStatusColors[status]}>{t(`patients.${status}`)}</Badge>
-                <DoctorBadge doctorId={patient.assignedDoctorId} variant="full" />
               </div>
-              {(patient.address || patient.workplace) && (
-                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                  {patient.address && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      {patient.address}
-                    </span>
-                  )}
-                  {patient.workplace && (
-                    <span className="flex items-center gap-1.5">
-                      <Briefcase className="h-3.5 w-3.5 shrink-0" />
-                      {patient.workplace}
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={onAddAppointment}>
-              <CalendarPlus className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.addAppointment")}</span>
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={onWritePrescription}>
-              <Pill className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.writePrescription")}</span>
-            </Button>
-            <Button size="sm" className="gap-1.5" onClick={onAddTreatment}>
-              <Stethoscope className="h-4 w-4" />
-              <span className="hidden sm:inline">{t("patientProfile.addTreatment")}</span>
-            </Button>
+
+          <div className="space-y-2 text-sm">
+            <a href={`tel:${patient.phone}`} className="flex items-center gap-2 font-medium text-primary hover:underline">
+              <Phone className="h-4 w-4 shrink-0" />{formatPhone(patient.phone)}
+            </a>
+            <DoctorBadge doctorId={patient.assignedDoctorId} variant="line" />
           </div>
         </div>
+
+        {/* Info — icon + value; the field name shows on hover */}
+        <div className="space-y-3 border-t pt-4 text-sm">
+          {info.map((r) => (
+            <Tooltip key={r.tip}>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2.5">
+                  <r.Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 truncate font-medium">{r.value}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">{r.tip}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+
+        {/* Balance */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.remaining")}</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+              {patient.visitNumber ?? 0} {t("patientProfile.visits").toLowerCase()}
+            </span>
+          </div>
+          <p className={cn("text-2xl font-bold tabular-nums", balance.remaining > 0 ? "text-destructive" : "text-green-600")}>
+            {fmt(balance.remaining)} <span className="text-sm font-normal text-muted-foreground">{cur}</span>
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${paidPct}%` }} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t("patients.paid")}: {fmt(balance.paid)} / {fmt(balance.totalCost)} {cur}
+          </p>
+        </div>
+
+        {/* Allergies — only when present */}
+        {patient.allergies.length > 0 && (
+          <div className="space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" />{t("patientProfile.medicalNotesTitle")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {patient.allergies.map((a) => (
+                <Badge key={a} variant="outline" className="border-destructive/30 text-[11px] text-destructive">{a}</Badge>
+              ))}
+            </div>
+            {patient.medicalNotes && <p className="text-xs text-muted-foreground">{patient.medicalNotes}</p>}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1097,12 +1199,16 @@ export default function PatientProfile() {
     );
   }
 
-  const handleEditSave = (data: { fullName: string; phone: string; allergies: string; medicalNotes: string }) => {
+  const handleEditSave = (data: EditPatientData) => {
     updatePatient(patientId, {
-      fullName:     data.fullName,
-      phone:        data.phone,
-      allergies:    data.allergies.split(",").map((a) => a.trim()).filter(Boolean),
-      medicalNotes: data.medicalNotes,
+      fullName:         data.fullName,
+      phone:            data.phone,
+      birthDate:        data.birthDate || undefined,
+      address:          data.address,
+      workplace:        data.workplace,
+      assignedDoctorId: data.assignedDoctorId || undefined,
+      allergies:        data.allergies.split(",").map((a) => a.trim()).filter(Boolean),
+      medicalNotes:     data.medicalNotes,
     });
     setEditOpen(false);
     toast.success(t("patientProfile.patientUpdated"));
@@ -1161,48 +1267,34 @@ export default function PatientProfile() {
   const prescriptionsCount = getPatientPrescriptions(patientId, localPatient?.fullName).length;
 
   return (
-    <div className="space-y-6">
-      {/* Back + Edit */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" size="sm" onClick={() => navigate("/patients")} className="gap-2 text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />{t("patientProfile.backToList")}
         </Button>
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Edit className="h-4 w-4" />{t("patientProfile.editPatient")}
-            </Button>
-          </DialogTrigger>
-          <EditPatientDialog patient={localPatient} onSave={handleEditSave} />
-        </Dialog>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" className="gap-1.5" onClick={openNewTreatment}>
+            <Stethoscope className="h-4 w-4" />{t("patientProfile.addTreatment")}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={openNewPrescription}>
+            <Pill className="h-4 w-4" />{t("patientProfile.writePrescription")}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setAppointmentOpen(true)}>
+            <CalendarPlus className="h-4 w-4" />{t("patientProfile.addAppointment")}
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-3.5 w-3.5" />{t("patientProfile.editPatient")}
+          </Button>
+        </div>
       </div>
 
-      <PatientHeader
-        patient={localPatient}
-        status={patientStatus}
-        onAddAppointment={() => setAppointmentOpen(true)}
-        onAddTreatment={openNewTreatment}
-        onWritePrescription={openNewPrescription}
-      />
+      <div className="grid items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="lg:sticky lg:top-6">
+          <PatientSidebar patient={localPatient} status={patientStatus} balance={patientBalance} />
+        </aside>
 
-      {/* Dialogs */}
-      <AddAppointmentDialog patient={localPatient} open={appointmentOpen} onOpenChange={setAppointmentOpen} />
-      <TreatmentDialog
-        patientId={patientId}
-        treatment={editingTreatment}
-        open={treatmentDialogOpen}
-        onOpenChange={setTreatmentDialogOpen}
-      />
-      <PrescriptionDialog
-        patientId={patientId}
-        editing={editingPrescription}
-        open={prescriptionDialogOpen}
-        onOpenChange={(v) => { setPrescriptionDialogOpen(v); if (!v) setEditingPrescription(null); }}
-      />
-      {printSheet}
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="overview">{t("patientProfile.overview")}</TabsTrigger>
           <TabsTrigger value="treatments">
@@ -1226,95 +1318,7 @@ export default function PatientProfile() {
 
         {/* ── Overview ──────────────────────────────────────────────────── */}
         <TabsContent value="overview">
-          <div className="mb-4">
-            <DentalChart teeth={teethData} onUpdate={() => {}} readOnly />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    {t("patientProfile.financialSummary")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("patients.totalCost")}</span>
-                    <span className="font-semibold tabular-nums">{fmt(patientBalance.totalCost)} {t("common.currency")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("patients.paid")}</span>
-                    <span className="font-semibold tabular-nums text-green-600">{fmt(patientBalance.paid)} {t("common.currency")}</span>
-                  </div>
-                  <div className="border-t pt-2 flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t("patients.remaining")}</span>
-                    <span className={cn("font-bold tabular-nums", patientBalance.remaining > 0 ? "text-destructive" : "text-green-600")}>
-                      {fmt(patientBalance.remaining)} {t("common.currency")}
-                      {patientBalance.remaining > 0 && (
-                        <Badge className="ml-2 bg-destructive/15 text-destructive border-destructive/30 text-xs">{t("patients.debt")}</Badge>
-                      )}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm border-destructive/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base text-destructive">
-                    <AlertTriangle className="h-4 w-4" />{t("patientProfile.medicalNotesTitle")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {localPatient.allergies.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        {localPatient.allergies.map((a) => (
-                          <Badge key={a} variant="outline" className="border-destructive/30 text-destructive text-xs">{a}</Badge>
-                        ))}
-                      </div>
-                      {localPatient.medicalNotes && (
-                        <p className="text-sm text-muted-foreground">{localPatient.medicalNotes}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">{t("patientProfile.noAlerts")}</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="space-y-4">
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{t("patientProfile.totalSpent")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold tabular-nums">{fmt(patientBalance.paid)} <span className="text-sm font-normal text-muted-foreground">{t("common.currency")}</span></p>
-                </CardContent>
-              </Card>
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{t("treatments.title")}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold tabular-nums">{allTreatments.length}</p>
-                </CardContent>
-              </Card>
-              {inProgressList.length > 0 && (
-                <Card className="shadow-sm border-orange-500/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-orange-600 flex items-center gap-1.5">
-                      <Clock className="h-4 w-4" />{t("treatments.activeTreatments")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-2xl font-bold tabular-nums text-orange-600">{inProgressList.length}</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
+          <DentalChart teeth={teethData} onUpdate={() => {}} readOnly />
         </TabsContent>
 
         {/* ── Muolajalar Tab ────────────────────────────────────────────── */}
@@ -1393,7 +1397,28 @@ export default function PatientProfile() {
         <TabsContent value="gallery">
           <GalleryTab patient={localPatient} onAddImages={handleAddGalleryImages} onDeleteImage={handleDeleteGalleryImage} />
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Dialogs (portaled — position in the tree does not affect layout) */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <EditPatientDialog patient={localPatient} onSave={handleEditSave} />
+      </Dialog>
+      <AddAppointmentDialog patient={localPatient} open={appointmentOpen} onOpenChange={setAppointmentOpen} />
+      <TreatmentDialog
+        patientId={patientId}
+        treatment={editingTreatment}
+        open={treatmentDialogOpen}
+        onOpenChange={setTreatmentDialogOpen}
+      />
+      <PrescriptionDialog
+        patientId={patientId}
+        editing={editingPrescription}
+        open={prescriptionDialogOpen}
+        onOpenChange={(v) => { setPrescriptionDialogOpen(v); if (!v) setEditingPrescription(null); }}
+      />
+      {printSheet}
     </div>
   );
 }

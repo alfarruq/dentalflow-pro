@@ -106,11 +106,12 @@ export interface PatientDetailDto {
   full_name: string;
   phone_number: string;
   doctor: string | null;
-  /** Not yet returned by the detail serializer — present once the backend adds it. */
-  address?: string | null;
-  /** Workplace / place of study; see `address`. */
-  office?: string | null;
+  address: string | null;
+  /** Workplace / place of study. */
+  office: string | null;
   image: string | null;
+  /** "yyyy-MM-dd" */
+  birth_date: string | null;
   age: number | null;
   status: string | null;
   total_treatment_cost: number;
@@ -119,6 +120,8 @@ export interface PatientDetailDto {
   visit_number: number;
   treatment_type: PatientDetailTreatmentDto[];
   gallery: GalleryImageDto[];
+  /** Patient's prescriptions, embedded (same shape as /core/recipes/). */
+  recipe: RecipeDto[];
 }
 
 // ─── Treatments ───────────────────────────────────────────────────────────────

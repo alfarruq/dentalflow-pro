@@ -4,7 +4,7 @@ import { doctorColorMap } from "@/data/mockDoctors";
 
 interface DoctorBadgeProps {
   doctorId: string | null | undefined;
-  variant?: "full" | "compact" | "dot";
+  variant?: "full" | "compact" | "dot" | "line";
   className?: string;
 }
 
@@ -24,6 +24,16 @@ export function DoctorBadge({ doctorId, variant = "full", className }: DoctorBad
         title={doctor.name}
         aria-label={doctor.name}
       />
+    );
+  }
+
+  if (variant === "line") {
+    // Colored dot + name, no pill background — a subtle inline line.
+    return (
+      <span className={cn("inline-flex items-center gap-1.5 text-sm text-muted-foreground", className)}>
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", palette.dot)} />
+        {shortName}
+      </span>
     );
   }
 

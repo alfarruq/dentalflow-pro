@@ -115,6 +115,9 @@ export function mapPatientDetail(dto: PatientDetailDto, doctors: Doctor[]): Pati
     treatmentStatus: mapListStatus(dto.status),
     address: dto.address ?? undefined,
     workplace: dto.office ?? undefined,
+    image: dto.image ?? undefined,
+    birthDate: dto.birth_date ?? undefined,
+    visitNumber: dto.visit_number,
   };
 
   // The detail endpoint returns treatment types + tooth numbers, and the

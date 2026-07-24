@@ -26,8 +26,14 @@ export interface Patient {
   galleryImages: GalleryImage[];
   assignedDoctorId?: string;
   birthYear?: number;
+  /** "yyyy-MM-dd" from the API (detail); the source of truth for age. */
+  birthDate?: string;
   address?: string;
   workplace?: string;
+  /** Patient photo URL, or undefined. */
+  image?: string;
+  /** Number of visits (detail aggregate). */
+  visitNumber?: number;
   /** Server-side aggregates provided by the patient list/detail endpoints. */
   remaining?: number;
   treatmentStatus?: "in_progress" | "completed";

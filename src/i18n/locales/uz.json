@@ -156,7 +156,10 @@
     "deleteImageConfirmTitle": "Rasmni o'chirish",
     "deleteImageConfirmDesc": "Ushbu rasmni o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.",
     "imageDeleted": "Rasm o'chirildi",
-    "writePrescription": "Retsept yozish"
+    "writePrescription": "Retsept yozish",
+    "visits": "Tashriflar",
+    "patientInfo": "Bemor ma‘lumotlari",
+    "age": "Yosh"
   },
   "appointments": {
     "title": "Uchrashuvlar",
@@ -540,7 +543,8 @@
     "date": "Sana",
     "teeth": "Tish(lar)",
     "fullyPaid": "To'liq to'langan",
-    "notes": "Izohlar"
+    "notes": "Izohlar",
+    "history": "Muolajalar tarixi"
   },
   "prescriptions": {
     "title": "Retseptlar",

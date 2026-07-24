@@ -156,7 +156,10 @@
     "deleteImageConfirmTitle": "Удалить изображение",
     "deleteImageConfirmDesc": "Вы уверены, что хотите удалить это изображение? Это действие нельзя отменить.",
     "imageDeleted": "Изображение удалено",
-    "writePrescription": "Выписать рецепт"
+    "writePrescription": "Выписать рецепт",
+    "visits": "Визиты",
+    "patientInfo": "Данные пациента",
+    "age": "Возраст"
   },
   "appointments": {
     "title": "Записи",
@@ -540,7 +543,8 @@
     "date": "Дата",
     "teeth": "Зуб(ы)",
     "fullyPaid": "Полностью оплачено",
-    "notes": "Заметки"
+    "notes": "Заметки",
+    "history": "История лечения"
   },
   "prescriptions": {
     "title": "Рецепты",

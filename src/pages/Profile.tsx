@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { DoctorsManagementCard } from "@/components/DoctorsManagementCard";
 import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
+import { formatThousands, parseThousands } from "@/lib/number";
 import { usePatientFormFields, type PatientFormFields } from "@/contexts/PatientFormFieldsContext";
 import { ListChecks, ImagePlus } from "lucide-react";
 import { loadClinicInfo, saveClinicInfo, type ClinicInfo } from "@/data/clinicInfo";
@@ -92,12 +93,12 @@ function ServiceTemplateDialog({
   useEffect(() => {
     if (!open) return;
     setName(editing?.name ?? "");
-    setPrice(editing?.price != null ? String(editing.price) : "");
+    setPrice(editing?.price != null ? formatThousands(String(editing.price)) : "");
   }, [open, editing]);
 
   function handleSave() {
     if (!name.trim() || !price) return;
-    const data = { name: name.trim(), price: Number(price) };
+    const data = { name: name.trim(), price: Number(parseThousands(price)) };
     if (editing) {
       updateTreatmentType(editing.id, data);
       toast.success(t("profile.serviceUpdated"));
@@ -127,10 +128,11 @@ function ServiceTemplateDialog({
           <div className="space-y-1.5">
             <Label>{t("profile.servicePrice")} ({t("common.currency")})</Label>
             <Input
-              type="number"
+              type="text"
+              inputMode="numeric"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="300 000"
+              onChange={(e) => setPrice(formatThousands(e.target.value))}
+              placeholder="300,000"
             />
           </div>
         </div>

@@ -40,6 +40,8 @@ import { formatPrintDosage, formatPrintDuration, formatPrintSchedule } from "@/d
 import { loadClinicInfo } from "@/data/clinicInfo";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api/client";
+import { formatUzPhone } from "@/lib/phone";
+import { formatThousands, parseThousands } from "@/lib/number";
 import { treatmentTypeKeyFromName, type PatientDetailResult } from "@/lib/api/mappers";
 import { useTreatments } from "@/contexts/TreatmentContext";
 import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
@@ -64,17 +66,6 @@ const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
 });
 
 function fmt(n: number) { return n.toLocaleString("uz-UZ"); }
-
-/** "+998932299722" → "+998(93)-229-97-22"; leaves anything unexpected as-is. */
-function formatPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "");
-  if (d.length === 12 && d.startsWith("998")) {
-    const code = d.slice(3, 5);
-    const n = d.slice(5);
-    return `+998(${code})-${n.slice(0, 3)}-${n.slice(3, 5)}-${n.slice(5, 7)}`;
-  }
-  return raw;
-}
 
 const patientStatusColors: Record<TreatmentStatus, string> = {
   in_progress: "bg-orange-500/15 text-orange-700 dark:text-orange-400 border-orange-500/30",
@@ -141,8 +132,8 @@ function TreatmentDialog({
   const [date, setDate]                 = useState<Date>(treatment ? new Date(treatment.date) : new Date());
   const [teeth, setTeeth]               = useState<string[]>(treatment?.teeth ?? []);
   const [treatmentTypeId, setTreatmentTypeId] = useState("");
-  const [totalCost, setTotalCost]       = useState(treatment ? String(treatment.totalCost) : "");
-  const [amountPaid, setAmountPaid]     = useState(treatment ? String(treatment.amountPaid) : "");
+  const [totalCost, setTotalCost]       = useState(treatment ? formatThousands(String(treatment.totalCost)) : "");
+  const [amountPaid, setAmountPaid]     = useState(treatment ? formatThousands(String(treatment.amountPaid)) : "");
   const [doctorId, setDoctorId]         = useState(treatment?.doctorId ?? "");
   const [note, setNote]                 = useState(treatment?.note ?? "");
 
@@ -156,14 +147,14 @@ function TreatmentDialog({
     const chosen = match ?? treatmentTypes[0];
     setTreatmentTypeId(String(chosen.id));
     // Prefill cost only when adding; editing keeps the treatment's existing cost.
-    if (!treatment && chosen.price != null) setTotalCost(String(chosen.price));
+    if (!treatment && chosen.price != null) setTotalCost(formatThousands(String(chosen.price)));
   }, [treatment, treatmentTypes, treatmentTypeId]);
 
   // Picking a treatment type prefills its price as an editable default.
   function selectTreatmentType(id: string) {
     setTreatmentTypeId(id);
     const tt = treatmentTypes.find((t) => String(t.id) === id);
-    if (tt?.price != null) setTotalCost(String(tt.price));
+    if (tt?.price != null) setTotalCost(formatThousands(String(tt.price)));
   }
 
   function reset() {
@@ -178,8 +169,8 @@ function TreatmentDialog({
       teeth,
       // Display key for the local cache; the real id is sent separately on add.
       treatmentType: selectedType ? treatmentTypeKeyFromName(selectedType.name) : "cleaning",
-      totalCost: Number(totalCost) || 0,
-      amountPaid: Number(amountPaid) || 0,
+      totalCost: Number(parseThousands(totalCost)) || 0,
+      amountPaid: Number(parseThousands(amountPaid)) || 0,
       doctorId: doctorId || undefined,
       note: note.trim() || undefined,
     };
@@ -249,11 +240,23 @@ function TreatmentDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>{t("patients.totalCost")}</Label>
-              <Input type="number" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} placeholder="500 000" />
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={totalCost}
+                onChange={(e) => setTotalCost(formatThousands(e.target.value))}
+                placeholder="500,000"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t("patients.paid")}</Label>
-              <Input type="number" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="200 000" />
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={amountPaid}
+                onChange={(e) => setAmountPaid(formatThousands(e.target.value))}
+                placeholder="200,000"
+              />
             </div>
           </div>
 
@@ -777,7 +780,7 @@ function PatientSidebar({
 
           <div className="space-y-2 text-sm">
             <a href={`tel:${patient.phone}`} className="flex items-center gap-2 font-medium text-primary hover:underline">
-              <Phone className="h-4 w-4 shrink-0" />{formatPhone(patient.phone)}
+              <Phone className="h-4 w-4 shrink-0" />{formatUzPhone(patient.phone)}
             </a>
             <DoctorBadge doctorId={patient.assignedDoctorId} variant="line" />
           </div>

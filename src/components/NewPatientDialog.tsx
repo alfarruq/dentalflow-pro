@@ -14,6 +14,8 @@ import { usePatients } from "@/contexts/PatientsContext";
 import { useTreatments } from "@/contexts/TreatmentContext";
 import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
 import { usePatientFormFields } from "@/contexts/PatientFormFieldsContext";
+import { formatUzPhone, phoneToE164, isUzPhoneComplete } from "@/lib/phone";
+import { formatThousands, parseThousands } from "@/lib/number";
 
 interface NewPatientDialogProps {
   open: boolean;
@@ -36,7 +38,7 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
   const { treatmentTypes } = useServiceTemplates();
 
   const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
+  const [newPhone, setNewPhone] = useState("+998");
   const [newBirthDate, setNewBirthDate] = useState("");
   const [newAddress, setNewAddress] = useState("");
   const [newWorkplace, setNewWorkplace] = useState("");
@@ -51,18 +53,18 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
     if (!open || newTreatmentTypeId || treatmentTypes.length === 0) return;
     const first = treatmentTypes[0];
     setNewTreatmentTypeId(String(first.id));
-    if (first.price != null) setNewTotalCost(String(first.price));
+    if (first.price != null) setNewTotalCost(formatThousands(String(first.price)));
   }, [open, newTreatmentTypeId, treatmentTypes]);
 
   // Picking a treatment type prefills its price as an editable default.
   function selectTreatmentType(id: string) {
     setNewTreatmentTypeId(id);
     const tt = treatmentTypes.find((t) => String(t.id) === id);
-    if (tt?.price != null) setNewTotalCost(String(tt.price));
+    if (tt?.price != null) setNewTotalCost(formatThousands(String(tt.price)));
   }
 
   function resetForm() {
-    setNewName(""); setNewPhone(""); setNewBirthDate(""); setNewAddress(""); setNewWorkplace("");
+    setNewName(""); setNewPhone("+998"); setNewBirthDate(""); setNewAddress(""); setNewWorkplace("");
     setNewTreatmentTypeId("");
     setNewStatus("in_progress"); setNewTotalCost("");
     setNewAmountPaid("");
@@ -75,7 +77,7 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
   }
 
   async function handleAddPatient() {
-    if (!newName.trim() || !newPhone.trim()) {
+    if (!newName.trim() || !isUzPhoneComplete(newPhone)) {
       toast.error(t("patients.phoneRequired"));
       return;
     }
@@ -83,7 +85,7 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
     try {
       created = await addPatient({
         fullName: newName.trim(),
-        phone: newPhone.trim(),
+        phone: phoneToE164(newPhone),
         doctorId: newDoctorId || undefined,
         birthDate: newBirthDate || undefined,
         address: newAddress.trim() || undefined,
@@ -94,8 +96,8 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
         date: new Date().toISOString(),
         teeth: [],
         treatmentTypeId: Number(newTreatmentTypeId) || undefined,
-        totalCost: Number(newTotalCost) || 0,
-        amountPaid: Number(newAmountPaid) || 0,
+        totalCost: Number(parseThousands(newTotalCost)) || 0,
+        amountPaid: Number(parseThousands(newAmountPaid)) || 0,
         status: newStatus,
         doctorId: newDoctorId || undefined,
       });
@@ -122,7 +124,13 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
           </div>
           <div className="grid gap-2">
             <Label className="text-[13px]">{t("patients.phone")}</Label>
-            <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="+998901234567" />
+            <Input
+              type="tel"
+              inputMode="tel"
+              value={newPhone}
+              onChange={(e) => setNewPhone(formatUzPhone(e.target.value))}
+              placeholder="+998-(93)-110-11-01"
+            />
           </div>
           {formFields.birthYear && (
             <div className="grid gap-2">
@@ -157,11 +165,23 @@ export function NewPatientDialog({ open, onOpenChange }: NewPatientDialogProps) 
           </div>
           <div className="grid gap-2">
             <Label className="text-[13px]">{t("patients.totalCost")}</Label>
-            <Input type="number" value={newTotalCost} onChange={(e) => setNewTotalCost(e.target.value)} placeholder="500000" />
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={newTotalCost}
+              onChange={(e) => setNewTotalCost(formatThousands(e.target.value))}
+              placeholder="500,000"
+            />
           </div>
           <div className="grid gap-2">
             <Label className="text-[13px]">{t("patients.paid")}</Label>
-            <Input type="number" value={newAmountPaid} onChange={(e) => setNewAmountPaid(e.target.value)} placeholder="200000" />
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={newAmountPaid}
+              onChange={(e) => setNewAmountPaid(formatThousands(e.target.value))}
+              placeholder="200,000"
+            />
           </div>
           <div className="grid gap-2">
             <Label className="text-[13px]">{t("patients.status")}</Label>

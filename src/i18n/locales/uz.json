@@ -616,7 +616,9 @@
       "with": "Ovqat bilan",
       "none": "Bog'liq emas"
     },
-    "prescription": "Retsept"
+    "prescription": "Retsept",
+    "medicineNamePlaceholder": "Dori nomini yozing...",
+    "pickFromList": "Ro‘yxatdan"
   },
   "commandPalette": {
     "placeholder": "Bemor, sahifa yoki amal qidirish...",

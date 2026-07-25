@@ -616,7 +616,9 @@
       "with": "With meal",
       "none": "No relation"
     },
-    "prescription": "Prescription"
+    "prescription": "Prescription",
+    "medicineNamePlaceholder": "Type medicine name...",
+    "pickFromList": "From list"
   },
   "commandPalette": {
     "placeholder": "Search patients, pages, actions...",

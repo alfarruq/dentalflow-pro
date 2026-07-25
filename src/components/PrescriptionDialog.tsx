@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { cn } from "@/lib/utils";
@@ -125,101 +125,73 @@ function toMedication(row: MedicationDraft, index: number, t: TFunction): Medica
 
 // ─── Medicine picker (searchable, accepts free text) ──────────────────────────
 
-function MedicineCombobox({
-  value, onPickCatalog, onTypeCustom, autoFocus,
+/**
+ * Medicine name field: a plain, always-editable text input for typing any
+ * name by hand, plus a separate compact picker select for filling a row from
+ * the catalog in one click. Two independent affordances — typing never
+ * requires going through the picker, and the picker never requires typing.
+ * The picker resets to its placeholder after each pick (it doesn't hold a
+ * persistent value of its own; the input is the single source of truth).
+ */
+function MedicineNameField({
+  value, onChange, onPickCatalog, autoFocus,
 }: {
   value: string;
+  onChange: (name: string) => void;
   onPickCatalog: (med: CatalogMedicine) => void;
-  onTypeCustom: (name: string) => void;
   autoFocus?: boolean;
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Bumped after every pick to remount the Select, snapping its trigger back
+  // to the placeholder instead of showing the just-picked name.
+  const [pickerKey, setPickerKey] = useState(0);
 
   useEffect(() => {
-    if (autoFocus) triggerRef.current?.focus();
+    if (autoFocus) inputRef.current?.focus();
   }, [autoFocus]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return MEDICATION_CATALOG;
-    return MEDICATION_CATALOG.filter((m) => m.name.toLowerCase().includes(q));
-  }, [query]);
-
-  const custom = query.trim();
-  const showCustom = custom.length > 0
-    && !matches.some((m) => m.name.toLowerCase() === custom.toLowerCase());
-
   return (
-    <Popover
-      open={open}
-      onOpenChange={(v) => { setOpen(v); if (!v) setQuery(""); }}
-    >
-      <PopoverTrigger asChild>
-        <Button
-          ref={triggerRef}
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="h-9 w-full justify-between gap-1 rounded-md border-input bg-background px-2.5 text-xs font-normal"
+    <div className="flex items-center gap-1">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t("prescriptions.medicineNamePlaceholder")}
+        className="h-9 min-w-0 flex-1 rounded-md border-input bg-background px-2.5 text-xs font-normal"
+      />
+      <Select
+        key={pickerKey}
+        onValueChange={(name) => {
+          const med = MEDICATION_CATALOG.find((m) => m.name === name);
+          if (med) onPickCatalog(med);
+          setPickerKey((k) => k + 1);
+        }}
+      >
+        <SelectTrigger
+          aria-label={t("prescriptions.pickFromList")}
+          className="h-9 w-[92px] shrink-0 rounded-md px-2 text-xs [&>span]:truncate"
         >
-          <span className={cn("truncate", !value && "text-muted-foreground")}>
-            {value || t("prescriptions.searchMedicine")}
-          </span>
-          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[280px] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={t("prescriptions.searchMedicine")}
-            value={query}
-            onValueChange={setQuery}
-          />
-          <CommandList>
-            {matches.length === 0 && !showCustom && (
-              <CommandEmpty>{t("prescriptions.noMedicineFound")}</CommandEmpty>
-            )}
-            {showCustom && (
-              <CommandGroup>
-                <CommandItem
-                  value={`custom-${custom}`}
-                  onSelect={() => { onTypeCustom(custom); setOpen(false); }}
-                >
-                  <Plus className="mr-2 h-3.5 w-3.5 shrink-0 opacity-60" />
-                  <span className="truncate">{t("prescriptions.addCustomMedicine", { name: custom })}</span>
-                </CommandItem>
-              </CommandGroup>
-            )}
-            {MEDICATION_CATEGORIES.map((category) => {
-              const items = matches.filter((m) => m.category === category);
-              if (items.length === 0) return null;
-              return (
-                <CommandGroup key={category} heading={t(`prescriptions.categories.${category}`)}>
-                  {items.map((med) => (
-                    <CommandItem
-                      key={med.name}
-                      value={med.name}
-                      onSelect={() => { onPickCatalog(med); setOpen(false); }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-3.5 w-3.5 shrink-0",
-                          value === med.name ? "opacity-100" : "opacity-0",
-                        )}
-                      />
-                      <span className="truncate">{med.name}</span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              );
-            })}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          <SelectValue placeholder={t("prescriptions.pickFromList")} />
+        </SelectTrigger>
+        <SelectContent>
+          {MEDICATION_CATEGORIES.map((category) => {
+            const items = MEDICATION_CATALOG.filter((m) => m.category === category);
+            if (items.length === 0) return null;
+            return (
+              <SelectGroup key={category}>
+                <SelectLabel>{t(`prescriptions.categories.${category}`)}</SelectLabel>
+                {items.map((med) => (
+                  <SelectItem key={med.name} value={med.name} className="text-xs">
+                    {med.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            );
+          })}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -450,15 +422,15 @@ export function PrescriptionDialog({
                         {index + 1}
                       </span>
 
-                      <MedicineCombobox
+                      <MedicineNameField
                         value={row.name}
                         autoFocus={focusRowId === row.rowId}
+                        onChange={(name) => patchRow(row.rowId, { name })}
                         onPickCatalog={(med) => {
                           setRows((prev) => prev.map((r) => (
                             r.rowId === row.rowId ? rowFromCatalog(med, r.rowId) : r
                           )));
                         }}
-                        onTypeCustom={(name) => patchRow(row.rowId, { name })}
                       />
 
                       <div className="flex gap-1">

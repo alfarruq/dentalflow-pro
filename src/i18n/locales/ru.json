@@ -616,7 +616,9 @@
       "with": "Во время еды",
       "none": "Без связи"
     },
-    "prescription": "Рецепт"
+    "prescription": "Рецепт",
+    "medicineNamePlaceholder": "Введите название лекарства...",
+    "pickFromList": "Из списка"
   },
   "commandPalette": {
     "placeholder": "Поиск пациентов, страниц, действий...",

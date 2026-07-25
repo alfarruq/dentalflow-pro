@@ -84,6 +84,7 @@ export function mapPatientFromList(dto: PatientListDto, doctors: Doctor[]): Pati
     remaining: dto.remaining ?? 0,
     treatmentStatus: mapListStatus(dto.status),
     latestTreatmentType: dto.treatment_type ? treatmentTypeKeyFromName(dto.treatment_type) : undefined,
+    latestTreatmentTypeName: dto.treatment_type ?? undefined,
   };
 }
 

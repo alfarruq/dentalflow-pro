@@ -50,6 +50,7 @@ export default function Patients() {
           balance: { remaining: p.remaining ?? 0 },
           status: p.treatmentStatus ?? ("in_progress" as TreatmentStatus),
           treatmentType: p.latestTreatmentType,
+          treatmentTypeName: p.latestTreatmentTypeName,
         }))
         .filter((r) => treatmentFilter === "all" || r.treatmentType === treatmentFilter)
         .sort((a, b) => new Date(b.patient.appointmentDate).getTime() - new Date(a.patient.appointmentDate).getTime()),
@@ -111,7 +112,7 @@ export default function Patients() {
         {paginated.length === 0 ? (
           <p className="text-center text-muted-foreground py-12">{t("patients.noResults")}</p>
         ) : (
-          paginated.map(({ patient, balance, status, treatmentType }) => (
+          paginated.map(({ patient, balance, status, treatmentTypeName }) => (
             <Card key={patient.id} className="p-4 cursor-pointer active:scale-[0.98] transition-transform" onClick={() => navigate(`/patients/${patient.id}`)}>
               <div className="flex items-start justify-between mb-2">
                 <div className="min-w-0">
@@ -121,7 +122,7 @@ export default function Patients() {
                 <Badge className={`border-0 text-[11px] ml-2 shrink-0 ${statusColors[status]}`}>{t(`patients.${status}`)}</Badge>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{treatmentType ? t(`patients.${treatmentType}`) : "—"}</span>
+                <span>{treatmentTypeName || "—"}</span>
                 <span>{format(new Date(patient.appointmentDate), "dd.MM.yyyy")}</span>
               </div>
               {/* Doctor badge */}
@@ -156,14 +157,14 @@ export default function Patients() {
               {paginated.length === 0 ? (
                 <TableRow><TableCell colSpan={7} className="h-24 text-center text-muted-foreground">{t("patients.noResults")}</TableCell></TableRow>
               ) : (
-                paginated.map(({ patient, balance, status, treatmentType }) => {
+                paginated.map(({ patient, balance, status, treatmentTypeName }) => {
                   const hasDebt = balance.remaining > 0;
                   return (
                     <TableRow key={patient.id} className="cursor-pointer transition-colors border-b border-border/30 hover:bg-accent/30" onClick={() => navigate(`/patients/${patient.id}`)}>
                       <TableCell className="font-medium text-[13px] whitespace-nowrap">{patient.fullName}</TableCell>
                       <TableCell className="text-muted-foreground text-[13px] hidden md:table-cell whitespace-nowrap">{patient.phone}</TableCell>
                       <TableCell className="text-muted-foreground text-[13px] hidden lg:table-cell whitespace-nowrap">{format(new Date(patient.appointmentDate), "dd.MM.yyyy HH:mm")}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[12px] rounded-lg whitespace-nowrap">{treatmentType ? t(`patients.${treatmentType}`) : "—"}</Badge></TableCell>
+                      <TableCell><Badge variant="outline" className="text-[12px] rounded-lg whitespace-nowrap">{treatmentTypeName || "—"}</Badge></TableCell>
                       <TableCell><Badge className={`border-0 text-[11px] whitespace-nowrap ${statusColors[status]}`}>{t(`patients.${status}`)}</Badge></TableCell>
                       <TableCell className="hidden xl:table-cell">
                         <DoctorBadge doctorId={patient.assignedDoctorId} variant="compact" />

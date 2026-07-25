@@ -38,4 +38,8 @@ export interface Patient {
   remaining?: number;
   treatmentStatus?: "in_progress" | "completed";
   latestTreatmentType?: TreatmentType;
+  /** Raw treatment-type name from the API — the clinic's actual catalog names
+   *  don't map onto the fixed implant/filling/cleaning set, so this is what
+   *  list views should display. */
+  latestTreatmentTypeName?: string;
 }

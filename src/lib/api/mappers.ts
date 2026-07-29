@@ -13,6 +13,7 @@ import type {
   PatientDetailDto,
   AppointmentDto,
   TreatmentTypeDto,
+  TreatmentListDto,
   MedicineWriteDto,
   RecipeDto,
 } from "./dto";
@@ -144,6 +145,29 @@ export function mapPatientDetail(dto: PatientDetailDto, doctors: Doctor[]): Pati
       paid: dto.total_paid,
       remaining: dto.remaining,
     },
+  };
+}
+
+/**
+ * The dedicated per-patient list (`GET /clinic/treatments/?patient_id=<id>`) —
+ * unlike the patient-detail endpoint above, this returns every visit with its
+ * own cost/paid/tooth. It still has no `status` field, so completion is
+ * inferred from `remaining` the same way the detail endpoint's fallback does.
+ */
+export function mapTreatmentFromList(dto: TreatmentListDto, doctors: Doctor[]): Treatment {
+  return {
+    id: String(dto.id),
+    patientId: String(dto.patient_id),
+    date: dto.start_date,
+    teeth: dto.tooth_number > 0 ? [String(dto.tooth_number)] : [],
+    treatmentType: treatmentTypeKeyFromName(dto.treatment_type),
+    treatmentTypeName: dto.treatment_type,
+    totalCost: dto.total_treatment_cost,
+    amountPaid: dto.total_paid,
+    status: dto.remaining <= 0 && dto.total_treatment_cost > 0 ? "completed" : "in_progress",
+    doctorId: doctorIdByName(doctors, dto.doctor),
+    note: dto.notes || undefined,
+    visitNumber: dto.visit_number,
   };
 }
 

@@ -145,6 +145,27 @@ export interface TreatmentWriteDto {
   notes?: string;
 }
 
+/** `GET /clinic/treatments/?patient_id=<id>` — one row per visit, paginated. */
+export interface TreatmentListDto {
+  id: number;
+  /** Patient full name (display string). */
+  patient: string;
+  patient_id: number;
+  /** Doctor full name, or null. */
+  doctor: string | null;
+  /** Treatment-type name only — no id, so it's matched back to a type by name. */
+  treatment_type: string;
+  total_treatment_cost: number;
+  total_paid: number;
+  remaining: number;
+  visit_number: number;
+  /** 0 when no tooth was recorded. */
+  tooth_number: number;
+  /** "yyyy-MM-dd" */
+  start_date: string;
+  notes: string;
+}
+
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
 export interface AppointmentDto {

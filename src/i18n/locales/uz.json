@@ -121,7 +121,19 @@
     "of": "dan",
     "showing": "Ko'rsatilmoqda",
     "patients": "bemorlar",
-    "birthDate": "Tug‘ilgan sana"
+    "birthDate": "Tug‘ilgan sana",
+    "patientSection": "Bemor ma'lumotlari",
+    "treatmentSection": "Birinchi muolaja",
+    "treatmentSectionHint": "Ixtiyoriy — tish xaritasidan tish tanlang. Hech narsa tanlamasangiz, faqat bemor saqlanadi.",
+    "nameRequired": "Bemor ismini kiriting",
+    "phoneInvalid": "Telefon raqam to'liq emas",
+    "saving": "Saqlanmoqda...",
+    "patientCreated": "Bemor qo'shildi",
+    "patientSavedTreatmentFailed": "Bemor saqlandi, lekin muolaja saqlanmadi. Qayta urinib ko'ring yoki muolajani keyinroq profildan qo'shing.",
+    "continueWithoutTreatment": "Muolajasiz davom etish",
+    "retryTreatment": "Muolajani qayta saqlash",
+    "next": "Keyingi",
+    "back": "Orqaga"
   },
   "patientProfile": {
     "backToList": "Bemorlar ro'yxatiga qaytish",
@@ -446,7 +458,8 @@
     "welcome": "Xush kelibsiz",
     "comingSoon": "Tez orada",
     "currency": "so'm",
-    "loading": "Yuklanmoqda..."
+    "loading": "Yuklanmoqda...",
+    "errorOccurred": "Xatolik yuz berdi"
   },
   "finance": {
     "title": "Moliya",
@@ -544,6 +557,7 @@
     "teeth": "Tish(lar)",
     "selectTeethHint": "Tish tanlash uchun xaritaga bosing",
     "removeRow": "Qatorni o'chirish",
+    "doubleClickForDetails": "Batafsil uchun ikki marta bosing",
     "inProgressShort": "Jarayonda",
     "treatmentCost": "Davolash qiymati",
     "fullyPaid": "To'liq to'langan",

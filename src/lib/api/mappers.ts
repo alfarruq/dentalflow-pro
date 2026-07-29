@@ -82,7 +82,9 @@ export function mapPatientFromList(dto: PatientListDto, doctors: Doctor[]): Pati
     appointmentDate,
     galleryImages: [],
     assignedDoctorId: doctorIdByName(doctors, dto.doctor),
-    remaining: dto.remaining ?? 0,
+    // `remaining` is only the latest treatment's balance; `total_remaining`
+    // is the patient's real total debt summed across every treatment.
+    remaining: dto.total_remaining ?? 0,
     treatmentStatus: mapListStatus(dto.status),
     latestTreatmentType: dto.treatment_type ? treatmentTypeKeyFromName(dto.treatment_type) : undefined,
     latestTreatmentTypeName: dto.treatment_type ?? undefined,
@@ -143,7 +145,9 @@ export function mapPatientDetail(dto: PatientDetailDto, doctors: Doctor[]): Pati
     balance: {
       totalCost: dto.total_treatment_cost,
       paid: dto.total_paid,
-      remaining: dto.remaining,
+      // `remaining` is only the first treatment's balance; `total_remaining`
+      // is the patient's real total debt summed across every treatment.
+      remaining: dto.total_remaining,
     },
   };
 }
@@ -151,8 +155,7 @@ export function mapPatientDetail(dto: PatientDetailDto, doctors: Doctor[]): Pati
 /**
  * The dedicated per-patient list (`GET /clinic/treatments/?patient_id=<id>`) —
  * unlike the patient-detail endpoint above, this returns every visit with its
- * own cost/paid/tooth. It still has no `status` field, so completion is
- * inferred from `remaining` the same way the detail endpoint's fallback does.
+ * own cost/paid/tooth/status.
  */
 export function mapTreatmentFromList(dto: TreatmentListDto, doctors: Doctor[]): Treatment {
   return {
@@ -164,7 +167,7 @@ export function mapTreatmentFromList(dto: TreatmentListDto, doctors: Doctor[]): 
     treatmentTypeName: dto.treatment_type,
     totalCost: dto.total_treatment_cost,
     amountPaid: dto.total_paid,
-    status: dto.remaining <= 0 && dto.total_treatment_cost > 0 ? "completed" : "in_progress",
+    status: mapListStatus(dto.status),
     doctorId: doctorIdByName(doctors, dto.doctor),
     note: dto.notes || undefined,
     visitNumber: dto.visit_number,

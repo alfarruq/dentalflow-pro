@@ -9,6 +9,10 @@ import {
   Pill, Printer, Pencil, CreditCard, MoreVertical, Eye, User,
 } from "lucide-react";
 import { DentalChartV2, type ToothStatusDef } from "@/components/DentalChartV2";
+import {
+  ToothChartPicker, ToothIcon, TreatmentRowsTable, TreatmentRowsSummary,
+  treatmentRowsToBatchRows, type TreatmentRowDraft,
+} from "@/components/TreatmentComposer";
 import { DoctorBadge } from "@/components/DoctorBadge";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { PrescriptionDialog } from "@/components/PrescriptionDialog";
@@ -34,12 +38,11 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { TREATMENT_TYPE_LABELS, type Patient, type TreatmentType, type GalleryImage } from "@/data/mockPatients";
 import type { Treatment, TreatmentStatus } from "@/data/mockTreatments";
-import type { TreatmentTypeDto } from "@/lib/api/dto";
 import type { Prescription } from "@/data/mockPrescriptions";
 import { formatPrintDosage, formatPrintDuration, formatPrintSchedule } from "@/data/medicationCatalog";
 import { loadClinicInfo } from "@/data/clinicInfo";
@@ -76,205 +79,94 @@ const treatmentStatusPillColors: Record<TreatmentStatus, string> = {
   completed:   "bg-green-600 text-white",
 };
 
-/** A tooth with any treatment on file is simply marked — one colour, no status split. */
-const CHART_STATUSES: ToothStatusDef[] = [
-  { id: "treated", color: "#22C55E", strokeColor: "#15803D", label: "Muolaja qilingan" },
+/** Overview chart's two tooth colours — completed vs. still in progress. */
+const OVERVIEW_CHART_STATUSES: ToothStatusDef[] = [
+  { id: "completed", color: "#22C55E", strokeColor: "#15803D", label: "Tugallangan" },
+  { id: "in_progress", color: "#F59E0B", strokeColor: "#B45309", label: "Davolash jarayonida" },
 ];
 
-// ─── Tooth chart + per-tooth treatment rows ────────────────────────────────────
+/** Legend dot + label pair, shown above the overview chart. */
+function ChartLegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  );
+}
 
 /**
- * One tooth's draft treatment line. Each row is a distinct tooth × treatment
- * type × cost/paid — the backend only stores one tooth per treatment record
- * today (see BACKEND_SPEC.md §1.4), so on save these are aggregated into the
- * single record it currently supports; once it accepts multiple teeth this is
- * where per-row submission would plug in.
+ * Overview tab's dental chart — teeth are coloured by their treatment status
+ * (green once every treatment on that tooth is completed, amber while any is
+ * still in progress), with a legend above explaining the two colours. Hovering
+ * a marked tooth shows a small floating tooltip with its number and treatment
+ * type(s). `DentalChartV2` only reports the hovered FDI, not a position, so the
+ * tooth's actual element is looked up by its `data-fdi` attribute to place it.
+ * Clicking a marked tooth opens the same "Batafsil" details dialog the
+ * Muolajalar table uses, for its most recent treatment.
  */
-interface TreatmentRowDraft {
-  fdi: string;
-  treatmentTypeId: string;
-  totalCost: string;
-  amountPaid: string;
-}
-
-/** Left-column piece: the chart itself plus the click-to-pick-a-type popover. */
-function ToothChartPicker({
-  rows, onRowsChange, treatmentTypes,
+function OverviewDentalChart({
+  values, treatmentNames, treatments, onEdit,
 }: {
-  rows: TreatmentRowDraft[];
-  onRowsChange: (rows: TreatmentRowDraft[]) => void;
-  treatmentTypes: TreatmentTypeDto[];
+  values: Record<string, string>;
+  treatmentNames: Record<string, string[]>;
+  treatments: Record<string, Treatment>;
+  onEdit: (t: Treatment) => void;
 }) {
   const { t } = useTranslation();
-  const [picker, setPicker] = useState<{ fdi: string; x: number; y: number } | null>(null);
-  const selectedTeeth = rows.map((r) => r.fdi);
-  // Rows already added stay marked green on the chart, same colour the
-  // overview tab uses for "has a treatment on file".
-  const chartValues = useMemo(
-    () => Object.fromEntries(selectedTeeth.map((fdi) => [fdi, "treated"])),
-    [selectedTeeth],
-  );
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState<{ fdi: string; x: number; y: number } | null>(null);
+  const [detailsTreatment, setDetailsTreatment] = useState<Treatment | null>(null);
 
-  // Picking an unselected tooth opens a treatment-type picker anchored to it;
-  // clicking an already-selected tooth just removes its row — no type to (re)pick.
-  function handleToothClick(fdi: string, _event: React.MouseEvent | React.KeyboardEvent, element: SVGGElement) {
-    if (selectedTeeth.includes(fdi)) {
-      onRowsChange(rows.filter((r) => r.fdi !== fdi));
+  function handleToothHover(fdi: string | null) {
+    if (!fdi || !treatmentNames[fdi]) {
+      setHover(null);
       return;
     }
-    const rect = element.getBoundingClientRect();
-    setPicker({ fdi, x: rect.left + rect.width / 2, y: rect.top });
+    const el = containerRef.current?.querySelector(`[data-fdi="${fdi}"]`);
+    if (!el) {
+      setHover(null);
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    setHover({ fdi, x: rect.left + rect.width / 2, y: rect.top });
   }
 
-  function addRow(typeId: string) {
-    if (!picker) return;
-    const tt = treatmentTypes.find((x) => String(x.id) === typeId);
-    onRowsChange([
-      ...rows,
-      {
-        fdi: picker.fdi,
-        treatmentTypeId: typeId,
-        totalCost: tt?.price != null ? formatThousands(String(tt.price)) : "",
-        amountPaid: "",
-      },
-    ]);
-    setPicker(null);
+  function handleToothClick(fdi: string) {
+    const tr = treatments[fdi];
+    if (tr) setDetailsTreatment(tr);
   }
 
   return (
-    <div className="space-y-2">
-      <div className="relative mx-auto max-w-[420px] rounded-xl border border-muted-foreground/15 bg-muted/20 p-3">
-        <DentalChartV2 values={chartValues} statuses={CHART_STATUSES} onToothClick={handleToothClick} maxWidth={380} />
-
-        <Popover open={!!picker} onOpenChange={(v) => { if (!v) setPicker(null); }}>
-          <PopoverAnchor asChild>
-            <span
-              className="pointer-events-none fixed h-px w-px"
-              style={{ left: picker?.x ?? 0, top: picker?.y ?? 0 }}
-            />
-          </PopoverAnchor>
-          <PopoverContent className="w-56 p-2" align="center" side="top" sideOffset={10}>
-            <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-              {picker && `${t("patientProfile.tooth")} ${picker.fdi}`}
-            </p>
-            <Select onValueChange={addRow} defaultOpen>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder={t("appointments.selectTreatment")} />
-              </SelectTrigger>
-              <SelectContent>
-                {treatmentTypes.map((tt) => (
-                  <SelectItem key={tt.id} value={String(tt.id)}>{tt.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </PopoverContent>
-        </Popover>
+    <div ref={containerRef} className="relative space-y-2">
+      <div className="flex items-center justify-end gap-4">
+        {OVERVIEW_CHART_STATUSES.map((s) => (
+          <ChartLegendItem key={s.id} color={s.color} label={t(`patients.${s.id}`)} />
+        ))}
       </div>
-
-      {rows.length === 0 && (
-        <p className="text-center text-xs text-muted-foreground">{t("treatments.selectTeethHint")}</p>
+      <DentalChartV2
+        values={values}
+        statuses={OVERVIEW_CHART_STATUSES}
+        onToothHover={handleToothHover}
+        onToothClick={handleToothClick}
+      />
+      {hover && (
+        <div
+          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+          style={{ left: hover.x, top: hover.y - 8 }}
+        >
+          <p className="font-semibold">{t("patientProfile.tooth")} {hover.fdi}</p>
+          <p className="text-muted-foreground">{treatmentNames[hover.fdi].join(", ")}</p>
+        </div>
       )}
-    </div>
-  );
-}
-
-/** Full-width piece below both columns: one editable row per picked tooth. */
-function TreatmentRowsTable({
-  rows, onRowsChange, treatmentTypes,
-}: {
-  rows: TreatmentRowDraft[];
-  onRowsChange: (rows: TreatmentRowDraft[]) => void;
-  treatmentTypes: TreatmentTypeDto[];
-}) {
-  const { t } = useTranslation();
-
-  if (rows.length === 0) return null;
-
-  function updateRow(fdi: string, patch: Partial<TreatmentRowDraft>) {
-    onRowsChange(rows.map((r) => (r.fdi === fdi ? { ...r, ...patch } : r)));
-  }
-
-  // Changing a row's type prefills its cost from the new type's price too —
-  // same "auto but editable" behaviour as the chart-side picker.
-  function changeRowType(fdi: string, typeId: string) {
-    const tt = treatmentTypes.find((x) => String(x.id) === typeId);
-    const current = rows.find((r) => r.fdi === fdi);
-    updateRow(fdi, {
-      treatmentTypeId: typeId,
-      totalCost: tt?.price != null ? formatThousands(String(tt.price)) : current?.totalCost ?? "",
-    });
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patientProfile.tooth")}</TableHead>
-            <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.treatmentType")}</TableHead>
-            <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.totalCost")}</TableHead>
-            <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.paid")}</TableHead>
-            <TableHead className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.debt")}</TableHead>
-            <TableHead className="text-right text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t("patients.actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const debt = Math.max(
-              (Number(parseThousands(row.totalCost)) || 0) - (Number(parseThousands(row.amountPaid)) || 0),
-              0,
-            );
-            return (
-              <TableRow key={row.fdi}>
-                <TableCell><ToothIcon number={row.fdi} /></TableCell>
-                <TableCell>
-                  <Select value={row.treatmentTypeId} onValueChange={(v) => changeRowType(row.fdi, v)}>
-                    <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {treatmentTypes.map((tt) => (
-                        <SelectItem key={tt.id} value={String(tt.id)}>{tt.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    className="h-8 w-24 text-xs"
-                    value={row.totalCost}
-                    onChange={(e) => updateRow(row.fdi, { totalCost: formatThousands(e.target.value) })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    className="h-8 w-24 text-xs"
-                    value={row.amountPaid}
-                    onChange={(e) => updateRow(row.fdi, { amountPaid: formatThousands(e.target.value) })}
-                  />
-                </TableCell>
-                <TableCell className={cn("whitespace-nowrap text-xs font-semibold", debt > 0 ? "text-red-600" : "text-foreground")}>
-                  {fmt(debt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
-                    onClick={() => onRowsChange(rows.filter((r) => r.fdi !== row.fdi))}
-                    aria-label={t("treatments.removeRow")}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      {detailsTreatment && (
+        <TreatmentDetailsDialog
+          treatment={detailsTreatment}
+          open={!!detailsTreatment}
+          onOpenChange={(v) => { if (!v) setDetailsTreatment(null); }}
+          onEdit={onEdit}
+        />
+      )}
     </div>
   );
 }
@@ -290,7 +182,7 @@ function TreatmentDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const { addTreatments, updateTreatment, completeTreatment } = useTreatments();
+  const { addTreatments, updateTreatment } = useTreatments();
   const { treatmentTypes } = useServiceTemplates();
   const isEditing = !!treatment;
 
@@ -338,6 +230,7 @@ function TreatmentDialog({
           doctorId: doctorId || undefined,
           note: note.trim() || undefined,
           visitNumber: treatment.visitNumber ?? 1,
+          status,
         });
       }
       if (extraRows.length > 0) {
@@ -346,17 +239,10 @@ function TreatmentDialog({
           doctorId: doctorId || undefined,
           date: date.toISOString(),
           note: note.trim() || undefined,
-          rows: extraRows.map((r) => ({
-            teeth: [r.fdi],
-            treatmentTypeId: Number(r.treatmentTypeId) || undefined,
-            totalCost: Number(parseThousands(r.totalCost)) || 0,
-            amountPaid: Number(parseThousands(r.amountPaid)) || 0,
-          })),
+          status,
+          rows: treatmentRowsToBatchRows(extraRows),
         });
       }
-      // The backend has no status field (see TreatmentContext.tsx) — completing
-      // is still a local-only marker, so only apply it on the "completed" edge.
-      if (status === "completed") completeTreatment(treatment.id);
       toast.success(t("treatments.treatmentUpdated"));
     } else {
       // A new visit can cover several teeth — `/clinic/treatments/` takes one
@@ -366,12 +252,8 @@ function TreatmentDialog({
         doctorId: doctorId || undefined,
         date: date.toISOString(),
         note: note.trim() || undefined,
-        rows: rows.map((r) => ({
-          teeth: [r.fdi],
-          treatmentTypeId: Number(r.treatmentTypeId) || undefined,
-          totalCost: Number(parseThousands(r.totalCost)) || 0,
-          amountPaid: Number(parseThousands(r.amountPaid)) || 0,
-        })),
+        status,
+        rows: treatmentRowsToBatchRows(rows),
       });
       toast.success(t("treatments.treatmentAdded"));
       reset();
@@ -420,6 +302,7 @@ function TreatmentDialog({
 
           {/* Per-tooth treatment rows — full width below both columns. */}
           <TreatmentRowsTable rows={rows} onRowsChange={setRows} treatmentTypes={treatmentTypes} />
+          <TreatmentRowsSummary rows={rows} />
         </div>
 
         <DialogFooter>
@@ -479,15 +362,6 @@ function AcceptPaymentPopover({ treatment }: { treatment: Treatment }) {
   );
 }
 
-/** Tooth-shaped badge with the tooth number set inside it, per-row in the treatments table. */
-function ToothIcon({ number }: { number: string }) {
-  return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-[11px] font-bold text-blue-700">
-      {number}
-    </div>
-  );
-}
-
 function TreatmentTableRow({
   treatment, onEdit,
 }: {
@@ -500,8 +374,8 @@ function TreatmentTableRow({
   const remaining = treatment.totalCost - treatment.amountPaid;
   const isCompleted = treatment.status === "completed";
 
-  function handleComplete() {
-    completeTreatment(treatment.id);
+  async function handleComplete() {
+    await completeTreatment(treatment.id, treatment.patientId);
     toast.success(t("treatments.treatmentCompleted"));
   }
 
@@ -509,7 +383,11 @@ function TreatmentTableRow({
     <>
       <TableRow>
         <TableCell>
-          <div className="flex flex-wrap gap-1.5">
+          <div
+            className="flex cursor-pointer select-none flex-wrap gap-1.5"
+            onDoubleClick={() => setDetailsOpen(true)}
+            title={t("treatments.doubleClickForDetails")}
+          >
             {treatment.teeth.length > 0 ? (
               treatment.teeth.map((n) => <ToothIcon key={n} number={n} />)
             ) : (
@@ -596,8 +474,8 @@ function TreatmentDetailsDialog({
   const remaining = treatment.totalCost - treatment.amountPaid;
   const isCompleted = treatment.status === "completed";
 
-  function handleComplete() {
-    completeTreatment(treatment.id);
+  async function handleComplete() {
+    await completeTreatment(treatment.id, treatment.patientId);
     toast.success(t("treatments.treatmentCompleted"));
     onOpenChange(false);
   }
@@ -1516,14 +1394,30 @@ export default function PatientProfile() {
   const patientStatus   = localPatient?.treatmentStatus ?? "in_progress";
 
   // Teeth that have any treatment on file — untouched teeth are left out of
-  // the map, which renders them neutral. A single "treated" mark (no
-  // per-status colour split) is all this chart needs to show right now.
-  const toothValues = useMemo<Record<string, string>>(() => {
-    const out: Record<string, string> = {};
+  // the map, which renders them neutral. A tooth shows "in_progress" (amber)
+  // as long as any of its treatments is still ongoing, and only turns
+  // "completed" (green) once every treatment on it is done — one unfinished
+  // visit should keep the tooth flagged as active work.
+  // `toothTreatmentNames` rides alongside for the hover tooltip — one tooth
+  // can carry more than one treatment type over time. `toothTreatments` keeps
+  // the most recent record per tooth, opened by clicking the tooth.
+  const { toothValues, toothTreatmentNames, toothTreatments } = useMemo(() => {
+    const values: Record<string, TreatmentStatus> = {};
+    const names: Record<string, string[]> = {};
+    const records: Record<string, Treatment> = {};
     for (const tr of allTreatments) {
-      for (const tooth of tr.teeth) out[tooth] = "treated";
+      const label = tr.treatmentTypeName ?? TREATMENT_TYPE_LABELS[tr.treatmentType];
+      for (const tooth of tr.teeth) {
+        if (values[tooth] !== "in_progress") values[tooth] = tr.status;
+        const list = names[tooth] ?? (names[tooth] = []);
+        if (!list.includes(label)) list.push(label);
+        const existing = records[tooth];
+        if (!existing || new Date(tr.date) > new Date(existing.date)) {
+          records[tooth] = tr;
+        }
+      }
     }
-    return out;
+    return { toothValues: values, toothTreatmentNames: names, toothTreatments: records };
   }, [allTreatments]);
 
   // Rendered in every branch: the printable sheet needs no patient data, and a
@@ -1678,7 +1572,12 @@ export default function PatientProfile() {
               <CardTitle className="text-base font-semibold">{t("patientProfile.dentalChart")}</CardTitle>
             </CardHeader>
             <CardContent className="pt-2">
-              <DentalChartV2 values={toothValues} statuses={CHART_STATUSES} />
+              <OverviewDentalChart
+                values={toothValues}
+                treatmentNames={toothTreatmentNames}
+                treatments={toothTreatments}
+                onEdit={openEditTreatment}
+              />
             </CardContent>
           </Card>
         </TabsContent>

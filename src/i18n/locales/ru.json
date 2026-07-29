@@ -121,7 +121,19 @@
     "of": "из",
     "showing": "Показано",
     "patients": "пациентов",
-    "birthDate": "Дата рождения"
+    "birthDate": "Дата рождения",
+    "patientSection": "Данные пациента",
+    "treatmentSection": "Первое лечение",
+    "treatmentSectionHint": "Необязательно — выберите зубы на карте. Если ничего не выбрать, сохранится только пациент.",
+    "nameRequired": "Введите имя пациента",
+    "phoneInvalid": "Номер телефона неполный",
+    "saving": "Сохранение...",
+    "patientCreated": "Пациент добавлен",
+    "patientSavedTreatmentFailed": "Пациент сохранён, но лечение — нет. Повторите попытку или добавьте лечение позже в его профиле.",
+    "continueWithoutTreatment": "Продолжить без лечения",
+    "retryTreatment": "Повторить лечение",
+    "next": "Далее",
+    "back": "Назад"
   },
   "patientProfile": {
     "backToList": "Назад к пациентам",
@@ -446,7 +458,8 @@
     "welcome": "Добро пожаловать",
     "comingSoon": "Скоро",
     "currency": "сум",
-    "loading": "Загрузка..."
+    "loading": "Загрузка...",
+    "errorOccurred": "Произошла ошибка"
   },
   "finance": {
     "title": "Финансы",
@@ -544,6 +557,7 @@
     "teeth": "Зуб(ы)",
     "selectTeethHint": "Нажмите на карту, чтобы выбрать зубы",
     "removeRow": "Удалить строку",
+    "doubleClickForDetails": "Дважды щёлкните для подробностей",
     "inProgressShort": "В процессе",
     "treatmentCost": "Стоимость лечения",
     "fullyPaid": "Полностью оплачено",

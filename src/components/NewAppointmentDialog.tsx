@@ -26,6 +26,8 @@ import { useCreateAppointment } from "@/hooks/useAppointments";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { ToothPicker } from "@/components/ToothPicker";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { formatUzPhone, phoneToE164, isUzPhoneComplete } from "@/lib/phone";
 
 interface NewAppointmentDialogProps {
   open: boolean;
@@ -59,9 +61,15 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
   const createAppointment = useCreateAppointment();
 
   // ─── Form state ──────────────────────────────────────────────────────────
+  // "existing" searches & picks a patient already on file; "new" writes a
+  // name (+ phone) straight into the appointment, which the backend accepts
+  // in place of a patient id and uses to create that patient record too.
+  const [patientMode, setPatientMode] = useState<"existing" | "new">("existing");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null); // holds hidden id + phone
   const [patientQuery, setPatientQuery] = useState("");
   const [patientOpen, setPatientOpen] = useState(false);
+  const [newPatientName, setNewPatientName] = useState("");
+  const [newPatientPhone, setNewPatientPhone] = useState("+998");
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [dateOpen, setDateOpen] = useState(false);
   const [time, setTime] = useState("09:00");
@@ -82,9 +90,12 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
   }, [open, treatmentTypeId, treatmentTypes]);
 
   function resetForm() {
+    setPatientMode("existing");
     setSelectedPatient(null);
     setPatientQuery("");
     setPatientOpen(false);
+    setNewPatientName("");
+    setNewPatientPhone("+998");
     setDate(new Date());
     setDateOpen(false);
     setTime("09:00");
@@ -100,11 +111,24 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
     if (!next) resetForm();
   }
 
+  function switchPatientMode(next: "existing" | "new") {
+    setPatientMode(next);
+    setSelectedPatient(null);
+    setPatientQuery("");
+    setNewPatientName("");
+    setNewPatientPhone("+998");
+  }
+
+  const newPatientReady = newPatientName.trim().length > 0 && isUzPhoneComplete(newPatientPhone);
+
   async function handleSave() {
-    if (!selectedPatient || !date || !doctorId) return;
+    if (!date || !doctorId) return;
+    if (patientMode === "existing" && !selectedPatient) return;
+    if (patientMode === "new" && !newPatientReady) return;
     try {
       await createAppointment.mutateAsync({
-        patientId: selectedPatient.id,
+        patientId: patientMode === "existing" ? selectedPatient!.id : undefined,
+        newPatient: patientMode === "new" ? { fullName: newPatientName.trim(), phone: phoneToE164(newPatientPhone) } : undefined,
         doctorId,
         date: format(date, "yyyy-MM-dd"),
         time,
@@ -121,7 +145,10 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
     toast({ title: t("appointments.appointmentAdded") });
   }
 
-  const canSave = Boolean(selectedPatient && date && doctorId) && !createAppointment.isPending;
+  const canSave =
+    Boolean(date && doctorId) &&
+    (patientMode === "existing" ? Boolean(selectedPatient) : newPatientReady) &&
+    !createAppointment.isPending;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -139,9 +166,34 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
         <input type="hidden" name="patientId" value={selectedPatient?.id ?? ""} readOnly />
         <input type="hidden" name="phone" value={selectedPatient?.phone ?? ""} readOnly />
 
+        {/* Existing vs. new patient — segmented toggle above the patient field. */}
+        <div className="inline-flex w-fit rounded-lg bg-muted p-1">
+          <button
+            type="button"
+            onClick={() => switchPatientMode("existing")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              patientMode === "existing" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("appointments.existingPatient")}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchPatientMode("new")}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              patientMode === "new" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t("appointments.newPatient")}
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Patient */}
-          <Field label={t("appointments.selectPatient")}>
+          {/* Patient — existing (search) or new (name + phone), per the toggle above. */}
+          {patientMode === "existing" ? (
+            <Field label={t("appointments.selectPatient")}>
               <Popover open={patientOpen} onOpenChange={setPatientOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -192,7 +244,29 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
                   </Command>
                 </PopoverContent>
               </Popover>
-          </Field>
+            </Field>
+          ) : (
+            <>
+              <Field label={t("patients.fullName")} htmlFor="apt-new-name">
+                <Input
+                  id="apt-new-name"
+                  value={newPatientName}
+                  onChange={(e) => setNewPatientName(e.target.value)}
+                  placeholder="Aziz Karimov"
+                />
+              </Field>
+              <Field label={t("patients.phone")} htmlFor="apt-new-phone">
+                <Input
+                  id="apt-new-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={newPatientPhone}
+                  onChange={(e) => setNewPatientPhone(formatUzPhone(e.target.value))}
+                  placeholder="+998-(93)-110-11-01"
+                />
+              </Field>
+            </>
+          )}
 
           {/* Doctor (renders its own label) */}
           <DoctorSelect

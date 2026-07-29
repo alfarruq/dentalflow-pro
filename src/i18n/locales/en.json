@@ -121,7 +121,19 @@
     "of": "of",
     "showing": "Showing",
     "patients": "patients",
-    "birthDate": "Birth date"
+    "birthDate": "Birth date",
+    "patientSection": "Patient details",
+    "treatmentSection": "First treatment",
+    "treatmentSectionHint": "Optional — pick teeth on the chart. Select nothing and only the patient is saved.",
+    "nameRequired": "Enter the patient's name",
+    "phoneInvalid": "Phone number is incomplete",
+    "saving": "Saving...",
+    "patientCreated": "Patient added",
+    "patientSavedTreatmentFailed": "The patient was saved, but the treatment was not. Retry, or add the treatment later from their profile.",
+    "continueWithoutTreatment": "Continue without treatment",
+    "retryTreatment": "Retry treatment",
+    "next": "Next",
+    "back": "Back"
   },
   "patientProfile": {
     "backToList": "Back to Patients",
@@ -446,7 +458,8 @@
     "welcome": "Welcome",
     "comingSoon": "Coming Soon",
     "currency": "UZS",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "errorOccurred": "Something went wrong"
   },
   "finance": {
     "title": "Finance",
@@ -544,6 +557,7 @@
     "teeth": "Tooth/teeth",
     "selectTeethHint": "Tap the chart to select teeth",
     "removeRow": "Remove row",
+    "doubleClickForDetails": "Double-click for details",
     "inProgressShort": "In progress",
     "treatmentCost": "Treatment cost",
     "fullyPaid": "Fully paid",

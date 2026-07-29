@@ -75,7 +75,10 @@ export interface PatientListDto {
   status: string | null;
   /** Assigned doctor's full name, or null. */
   doctor: string | null;
+  /** Only the latest treatment's remaining balance — use `total_remaining` for the patient's real total debt. */
   remaining: number | null;
+  /** Summed remaining balance across every treatment on file for this patient. */
+  total_remaining: number | null;
 }
 
 export interface PatientWriteDto {
@@ -116,7 +119,10 @@ export interface PatientDetailDto {
   status: string | null;
   total_treatment_cost: number;
   total_paid: number;
+  /** Only the first treatment's remaining balance — use `total_remaining` for the patient's real total debt. */
   remaining: number;
+  /** Summed remaining balance across every treatment on file for this patient. */
+  total_remaining: number;
   visit_number: number;
   treatment_type: PatientDetailTreatmentDto[];
   gallery: GalleryImageDto[];
@@ -143,6 +149,8 @@ export interface TreatmentWriteDto {
   /** "yyyy-MM-dd" */
   start_date: string;
   notes?: string;
+  /** New records default to "in_progress" server-side; PATCHable to flip completion. */
+  status?: "in_progress" | "completed";
 }
 
 /** `GET /clinic/treatments/?patient_id=<id>` — one row per visit, paginated. */
@@ -164,6 +172,8 @@ export interface TreatmentListDto {
   /** "yyyy-MM-dd" */
   start_date: string;
   notes: string;
+  /** "in_progress" | "completed" — real backend field, now present. */
+  status: string;
 }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────

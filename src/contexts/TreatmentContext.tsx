@@ -1,11 +1,11 @@
 import { createContext, useContext, useCallback, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { Treatment } from "@/data/mockTreatments";
+import type { Treatment, TreatmentStatus } from "@/data/mockTreatments";
 import type { TreatmentType } from "@/data/mockPatients";
 import { apiFetch } from "@/lib/api/client";
 import type { PaginatedDto, TreatmentListDto, TreatmentTypeDto, TreatmentWriteDto } from "@/lib/api/dto";
-import { mapTreatmentFromList, treatmentTypeIdForKey, type PatientDetailResult } from "@/lib/api/mappers";
+import { mapTreatmentFromList, treatmentTypeIdForKey } from "@/lib/api/mappers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDoctors } from "@/contexts/DoctorsContext";
 import { patientKeys } from "@/contexts/PatientsContext";
@@ -74,6 +74,8 @@ export interface NewTreatmentBatchInput {
   doctorId?: string;
   date: string; // ISO
   note?: string;
+  /** Same for every row in the visit — defaults to "in_progress" server-side when omitted. */
+  status?: TreatmentStatus;
   rows: NewTreatmentRow[];
 }
 
@@ -92,6 +94,7 @@ export interface TreatmentPatch {
   doctorId?: string;
   note?: string;
   visitNumber?: number;
+  status?: TreatmentStatus;
 }
 
 interface TreatmentContextType {
@@ -99,12 +102,8 @@ interface TreatmentContextType {
   addTreatments: (batch: NewTreatmentBatchInput) => Promise<void>;
   /** Real `PATCH /clinic/treatments/<id>/` — only the given fields are sent. */
   updateTreatment: (id: string, patientId: string, patch: TreatmentPatch) => Promise<void>;
-  /**
-   * The backend has no status field on treatments (confirmed — absent from
-   * both read and write shapes), so "completed" stays a local-cache-only
-   * marker until it does. See BACKEND_SPEC.md §1.3.
-   */
-  completeTreatment: (id: string) => void;
+  /** Real `PATCH /clinic/treatments/<id>/` with `{status: "completed"}`. */
+  completeTreatment: (id: string, patientId: string) => Promise<void>;
   /** Real `DELETE /clinic/treatments/<id>/`. */
   deleteTreatment: (id: string, patientId: string) => Promise<void>;
 }
@@ -140,6 +139,7 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
         tooth_number: row.teeth.length > 0 ? Number(row.teeth[0]) : 0,
         start_date: batch.date.slice(0, 10),
         notes: batch.note ?? "",
+        status: batch.status,
       }));
       await apiFetch("/clinic/treatments/", { method: "POST", body });
       return batch.patientId;
@@ -166,6 +166,7 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
         doctorId: data.doctorId,
         date: data.date,
         note: data.note,
+        status: data.status,
         rows: [{
           teeth: data.teeth,
           treatmentType: data.treatmentType,
@@ -200,6 +201,7 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
       if (patch.date !== undefined) body.start_date = patch.date.slice(0, 10);
       if (patch.note !== undefined) body.notes = patch.note;
       if (patch.visitNumber !== undefined) body.visit_number = patch.visitNumber;
+      if (patch.status !== undefined) body.status = patch.status;
       await apiFetch(`/clinic/treatments/${id}/`, { method: "PATCH", body });
       return patientId;
     },
@@ -214,33 +216,11 @@ export function TreatmentProvider({ children }: { children: ReactNode }) {
     [updateMutation],
   );
 
-  /**
-   * The backend has no status field, so this only ever touches the local
-   * cache — it doesn't survive a refetch that re-derives status from
-   * `remaining`, but there's nothing server-side to persist it to yet.
-   */
   const completeTreatment = useCallback(
-    (id: string) => {
-      queryClient.setQueriesData<PatientDetailResult>(
-        { queryKey: patientKeys.list },
-        (prev) => {
-          if (!prev || !("treatments" in prev)) return prev;
-          if (!prev.treatments.some((t) => t.id === id)) return prev;
-          return {
-            ...prev,
-            treatments: prev.treatments.map((t) => (t.id === id ? { ...t, status: "completed" as const } : t)),
-          };
-        },
-      );
-      queryClient.setQueriesData<Treatment[]>(
-        { queryKey: treatmentKeys.all },
-        (prev) => {
-          if (!prev || !prev.some((t) => t.id === id)) return prev;
-          return prev.map((t) => (t.id === id ? { ...t, status: "completed" as const } : t));
-        },
-      );
+    async (id: string, patientId: string) => {
+      await updateMutation.mutateAsync({ id, patientId, patch: { status: "completed" } });
     },
-    [queryClient],
+    [updateMutation],
   );
 
   const deleteMutation = useMutation({

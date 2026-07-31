@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarDays, Check, ChevronsUpDown } from "lucide-react";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +19,11 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Patient } from "@/data/mockPatients";
+import type { Appointment, AppointmentStatus } from "@/data/mockAppointments";
 import { useDoctors } from "@/contexts/DoctorsContext";
 import { usePatientSearch } from "@/contexts/PatientsContext";
 import { useServiceTemplates } from "@/contexts/ServiceTemplatesContext";
-import { useCreateAppointment } from "@/hooks/useAppointments";
+import { useCreateAppointment, useUpdateAppointment } from "@/hooks/useAppointments";
 import { DoctorSelect } from "@/components/DoctorSelect";
 import { ToothPicker } from "@/components/ToothPicker";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +33,14 @@ import { formatUzPhone, phoneToE164, isUzPhoneComplete } from "@/lib/phone";
 interface NewAppointmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Present → the dialog edits this appointment instead of creating a new one. */
+  appointment?: Appointment | null;
 }
+
+/** Only the fields this dialog actually reads/writes off a patient — a full
+ *  search result already satisfies this, and an appointment being edited can
+ *  be turned into one without inventing unrelated `Patient` fields. */
+type PickedPatient = Pick<Patient, "id" | "fullName" | "phone">;
 
 // 09:00 → 17:30 in 30-minute steps.
 const TIME_SLOTS = Array.from({ length: 18 }, (_, i) => {
@@ -53,19 +61,21 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; 
   );
 }
 
-export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialogProps) {
+export function NewAppointmentDialog({ open, onOpenChange, appointment }: NewAppointmentDialogProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { setLastUsedDoctorId } = useDoctors();
   const { treatmentTypes } = useServiceTemplates();
   const createAppointment = useCreateAppointment();
+  const updateAppointment = useUpdateAppointment();
+  const isEditing = Boolean(appointment);
 
   // ─── Form state ──────────────────────────────────────────────────────────
   // "existing" searches & picks a patient already on file; "new" writes a
   // name (+ phone) straight into the appointment, which the backend accepts
   // in place of a patient id and uses to create that patient record too.
   const [patientMode, setPatientMode] = useState<"existing" | "new">("existing");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null); // holds hidden id + phone
+  const [selectedPatient, setSelectedPatient] = useState<PickedPatient | null>(null); // holds hidden id + phone
   const [patientQuery, setPatientQuery] = useState("");
   const [patientOpen, setPatientOpen] = useState(false);
   const [newPatientName, setNewPatientName] = useState("");
@@ -74,6 +84,7 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
   const [dateOpen, setDateOpen] = useState(false);
   const [time, setTime] = useState("09:00");
   const [doctorId, setDoctorId] = useState("");
+  const [status, setStatus] = useState<AppointmentStatus>("confirmed");
   const [treatmentTypeId, setTreatmentTypeId] = useState("");
   const [teeth, setTeeth] = useState<number[]>([]);
   const [toothOpen, setToothOpen] = useState(false);
@@ -89,6 +100,21 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
     }
   }, [open, treatmentTypeId, treatmentTypes]);
 
+  // Editing seeds the form from the appointment being opened; this only needs
+  // to run once per open (the appointment reference is stable while the
+  // dialog is up), so it's keyed on `open` rather than every field.
+  useEffect(() => {
+    if (!open || !appointment) return;
+    setPatientMode("existing");
+    setSelectedPatient({ id: appointment.patientId, fullName: appointment.patientName, phone: appointment.phone });
+    setPatientQuery("");
+    setDate(parse(appointment.date, "yyyy-MM-dd", new Date()));
+    setTime(appointment.time);
+    setDoctorId(appointment.assignedDoctorId);
+    setStatus(appointment.status);
+    setNotes(appointment.notes);
+  }, [open, appointment]);
+
   function resetForm() {
     setPatientMode("existing");
     setSelectedPatient(null);
@@ -100,6 +126,7 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
     setDateOpen(false);
     setTime("09:00");
     setDoctorId("");
+    setStatus("confirmed");
     setTreatmentTypeId("");
     setTeeth([]);
     setToothOpen(false);
@@ -125,37 +152,56 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
     if (!date || !doctorId) return;
     if (patientMode === "existing" && !selectedPatient) return;
     if (patientMode === "new" && !newPatientReady) return;
+    const patientFields = {
+      patientId: patientMode === "existing" ? selectedPatient!.id : undefined,
+      newPatient: patientMode === "new" ? { fullName: newPatientName.trim(), phone: phoneToE164(newPatientPhone) } : undefined,
+    };
     try {
-      await createAppointment.mutateAsync({
-        patientId: patientMode === "existing" ? selectedPatient!.id : undefined,
-        newPatient: patientMode === "new" ? { fullName: newPatientName.trim(), phone: phoneToE164(newPatientPhone) } : undefined,
-        doctorId,
-        date: format(date, "yyyy-MM-dd"),
-        time,
-        notes,
-        // NOTE: treatment type + selected teeth are captured in the form but the
-        // backend create schema (swagger) has no fields for them yet, so they are
-        // intentionally not sent. Re-wire here once the API accepts them.
-      });
+      if (isEditing && appointment) {
+        await updateAppointment.mutateAsync({
+          id: appointment.id,
+          patch: {
+            ...patientFields,
+            doctorId,
+            date: format(date, "yyyy-MM-dd"),
+            time,
+            notes,
+            status,
+          },
+        });
+      } else {
+        await createAppointment.mutateAsync({
+          ...patientFields,
+          doctorId,
+          date: format(date, "yyyy-MM-dd"),
+          time,
+          notes,
+          // NOTE: treatment type + selected teeth are captured in the form but the
+          // backend schema (swagger) has no fields for them yet — confirmed
+          // silently ignored on both create and update (2026-07-31), so they are
+          // intentionally not sent. Re-wire here once the API accepts them.
+        });
+      }
     } catch {
       return; // error toast handled by the mutation
     }
     setLastUsedDoctorId(doctorId);
     handleOpenChange(false);
-    toast({ title: t("appointments.appointmentAdded") });
+    toast({ title: isEditing ? t("appointments.appointmentUpdated") : t("appointments.appointmentAdded") });
   }
 
   const canSave =
     Boolean(date && doctorId) &&
     (patientMode === "existing" ? Boolean(selectedPatient) : newPatientReady) &&
-    !createAppointment.isPending;
+    !createAppointment.isPending &&
+    !updateAppointment.isPending;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{t("appointments.newAppointmentTitle")}</DialogTitle>
-          <DialogDescription>{t("appointments.newAppointmentDesc")}</DialogDescription>
+          <DialogTitle>{isEditing ? t("appointments.editAppointmentTitle") : t("appointments.newAppointmentTitle")}</DialogTitle>
+          <DialogDescription>{isEditing ? t("appointments.editAppointmentDesc") : t("appointments.newAppointmentDesc")}</DialogDescription>
         </DialogHeader>
 
         {/*
@@ -276,6 +322,20 @@ export function NewAppointmentDialog({ open, onOpenChange }: NewAppointmentDialo
             hideIfSingle={false}
             required
           />
+
+          {/* Status — only meaningful once an appointment exists; new ones
+              always start "in_progress" server-side. */}
+          {isEditing && (
+            <Field label={t("patients.status")}>
+              <Select value={status} onValueChange={(v) => setStatus(v as AppointmentStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="confirmed">{t("appointments.status_confirmed")}</SelectItem>
+                  <SelectItem value="completed">{t("appointments.status_completed")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          )}
 
           {/* Date */}
           <Field label={t("appointments.date")}>

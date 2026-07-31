@@ -214,7 +214,14 @@
     "noToothSelected": "Tish tanlanmagan",
     "upperJaw": "Yuqori jag‘",
     "lowerJaw": "Pastki jag‘",
-    "close": "Yopish"
+    "close": "Yopish",
+    "editAppointmentTitle": "Uchrashuvni tahrirlash",
+    "editAppointmentDesc": "Uchrashuv ma'lumotlarini yangilang",
+    "appointmentUpdated": "Uchrashuv yangilandi",
+    "appointmentDeleted": "Uchrashuv o'chirildi",
+    "deleteConfirmTitle": "Uchrashuvni o'chirish",
+    "deleteConfirmDesc": "Bu amalni ortga qaytarib bo'lmaydi. Uchrashuv butunlay o'chiriladi.",
+    "detailsTitle": "Uchrashuv ma'lumotlari"
   },
   "reminders": {
     "title": "Eslatmalar",

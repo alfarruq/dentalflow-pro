@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api/client";
 import type { AppointmentDto, AppointmentWriteDto, PaginatedDto } from "@/lib/api/dto";
-import { mapAppointment } from "@/lib/api/mappers";
+import type { AppointmentStatus } from "@/data/mockAppointments";
+import { mapAppointment, appointmentStatusToApi } from "@/lib/api/mappers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDoctors } from "@/contexts/DoctorsContext";
 import { patientKeys } from "@/contexts/PatientsContext";
@@ -78,6 +79,66 @@ export function useCreateAppointment() {
       queryClient.invalidateQueries({ queryKey: appointmentsQueryKey });
       // Booking with a brand-new patient also creates that patient record.
       queryClient.invalidateQueries({ queryKey: patientKeys.list });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+/**
+ * Partial edit of an existing appointment. Only `patient`/`full_name`+
+ * `phone_number`, `doctor`, `date`, `time`, `notes` and `status` are real,
+ * PATCHable fields — confirmed live 2026-07-31 by patching each in isolation.
+ * `treatment_type`/`tooth_number` are NOT settable (the backend silently
+ * ignores them on both create and update, along with any other unknown
+ * field), so there is no patch field for either here.
+ */
+export interface AppointmentPatch {
+  patientId?: string;
+  newPatient?: { fullName: string; phone: string };
+  doctorId?: string;
+  /** "yyyy-MM-dd" */
+  date?: string;
+  /** "HH:mm" */
+  time?: string;
+  notes?: string;
+  status?: AppointmentStatus;
+}
+
+export function useUpdateAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: AppointmentPatch }) => {
+      const body: Partial<AppointmentWriteDto> = {};
+      if (patch.patientId !== undefined) body.patient = Number(patch.patientId);
+      if (patch.newPatient !== undefined) {
+        body.full_name = patch.newPatient.fullName;
+        body.phone_number = patch.newPatient.phone;
+      }
+      if (patch.doctorId !== undefined) body.doctor = Number(patch.doctorId);
+      if (patch.date !== undefined) body.date = patch.date;
+      if (patch.time !== undefined) body.time = patch.time;
+      if (patch.notes !== undefined) body.notes = patch.notes;
+      if (patch.status !== undefined) body.status = appointmentStatusToApi(patch.status);
+      await apiFetch(`/calendars/appointments/${id}/`, { method: "PATCH", body });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: appointmentsQueryKey });
+      queryClient.invalidateQueries({ queryKey: patientKeys.list });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiFetch(`/calendars/appointments/${id}/`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: appointmentsQueryKey });
     },
     onError: (err: Error) => toast.error(err.message),
   });

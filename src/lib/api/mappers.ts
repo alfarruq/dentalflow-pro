@@ -198,6 +198,7 @@ export function mapAppointment(dto: AppointmentDto, doctors: Doctor[]): Appointm
     date: dto.date,
     time: dto.time.slice(0, 5),
     treatmentType: treatmentTypeKeyFromName(dto.treatment_type),
+    treatmentTypeName: dto.treatment_type ?? undefined,
     toothNumber: dto.tooth_number ?? undefined,
     status: mapAppointmentStatus(dto.status),
     notes: dto.notes ?? "",

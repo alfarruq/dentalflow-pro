@@ -214,7 +214,14 @@
     "noToothSelected": "No teeth selected",
     "upperJaw": "Upper jaw",
     "lowerJaw": "Lower jaw",
-    "close": "Close"
+    "close": "Close",
+    "editAppointmentTitle": "Edit appointment",
+    "editAppointmentDesc": "Update the appointment details",
+    "appointmentUpdated": "Appointment updated",
+    "appointmentDeleted": "Appointment deleted",
+    "deleteConfirmTitle": "Delete appointment",
+    "deleteConfirmDesc": "This action cannot be undone. The appointment will be permanently deleted.",
+    "detailsTitle": "Appointment details"
   },
   "reminders": {
     "title": "Reminders",
